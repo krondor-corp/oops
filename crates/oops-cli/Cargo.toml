@@ -1,0 +1,22 @@
+[package]
+name = "oops-cli"
+description = "CLI for oops - fast disk usage diagnostics for Unix systems"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "oops"
+path = "src/main.rs"
+
+[dependencies]
+oops-core.workspace = true
+clap.workspace = true
+colored.workspace = true
+comfy-table.workspace = true
+crossterm.workspace = true
+thiserror.workspace = true
+anyhow.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+bytesize.workspace = true

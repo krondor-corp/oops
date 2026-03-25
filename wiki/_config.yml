@@ -1,0 +1,38 @@
+title: oops
+tagline: Where did all my disk space go?
+description: Fast disk usage diagnostics for Unix systems. Find what's eating your drive in seconds.
+baseurl: ""
+url: ""
+
+markdown: kramdown
+highlighter: rouge
+
+collections:
+  docs:
+    output: true
+    permalink: /docs/:slug/
+
+defaults:
+  - scope:
+      path: ""
+    values:
+      layout: default
+  - scope:
+      path: ""
+      type: docs
+    values:
+      layout: doc
+  - scope:
+      path: "index.md"
+    values:
+      layout: home
+
+exclude:
+  - Gemfile
+  - Gemfile.lock
+  - Makefile
+
+brand:
+  primary_color: "#8ec07c"
+  accent_color: "#689d6a"
+  tagline: "Where did all my disk space go?"

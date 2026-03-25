@@ -1,0 +1,14 @@
+- title: Getting Started
+  items:
+    - install
+    - overview
+    - commands
+
+- title: Concepts
+  items:
+    - how-it-works
+    - sparse-files
+
+- title: Practical
+  items:
+    - recipes

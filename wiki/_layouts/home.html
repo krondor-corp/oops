@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  {% include head.html %}
+</head>
+<body>
+  {% include header.html %}
+  <main class="home">
+
+    <section class="hero">
+      <svg class="hero-logo" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 44" width="40" height="88">
+        <rect x="7" y="0" width="5" height="5" rx="1" class="logo-stem"/>
+        <rect x="7" y="6" width="5" height="5" rx="1" class="logo-stem" opacity="0.90"/>
+        <rect x="7" y="12" width="5" height="5" rx="1" class="logo-stem" opacity="0.75"/>
+        <rect x="7" y="18" width="5" height="5" rx="1" class="logo-fade" opacity="0.60"/>
+        <rect x="7" y="24" width="5" height="5" rx="1" class="logo-fade" opacity="0.45"/>
+        <rect x="7" y="36" width="5" height="5" rx="1" class="logo-dot"/>
+      </svg>
+      <h1 class="hero-title">oops</h1>
+      <p class="hero-tagline">Where did all my disk space go?</p>
+      <p class="hero-sub">Fast disk usage diagnostics for macOS and Unix. Drill into what's eating your drive, find waste, reclaim space &mdash; in seconds.</p>
+      <div class="hero-install" id="hero-install">
+        <code>cargo install oops-cli</code>
+        <button class="copy-btn copy-btn-visible" onclick="navigator.clipboard.writeText('cargo install oops-cli').then(function(){var b=document.querySelector('#hero-install .copy-btn');b.textContent='copied';setTimeout(function(){b.textContent='copy'},1500)})">copy</button>
+      </div>
+      <div class="hero-links">
+        <a href="{{ '/docs/install/' | relative_url }}" class="hero-cta">Get started</a>
+        <a href="https://github.com/krondor-corp/oops" class="hero-link">GitHub</a>
+      </div>
+    </section>
+
+    <section class="features">
+      <div class="feature-grid">
+        <div class="feature">
+          <h3>instant overview</h3>
+          <p>Run <code>oops</code> and immediately see volumes, capacities, and the biggest items in your current directory. No flags needed.</p>
+        </div>
+        <div class="feature">
+          <h3>drill down</h3>
+          <p>Follow the largest child at each level automatically. One command traces the path from your home directory to the file eating all your space.</p>
+        </div>
+        <div class="feature">
+          <h3>sweep for waste</h3>
+          <p>Detect <code>node_modules</code>, build artifacts, Docker images, platform caches, and other reclaimable space with <code>oops sweep</code>.</p>
+        </div>
+        <div class="feature">
+          <h3>honest sizes</h3>
+          <p>Reports actual on-disk usage, not apparent file sizes. Sparse files like Docker.raw show their real footprint, not their inflated logical size.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="demo-preview">
+      <h2>what it looks like</h2>
+      <pre class="terminal-output"><code><span class="t-bold">~/repos/oops</span> <span class="t-dim">(1.2 GiB)</span>
+
+  target/       879.4 MiB  <span class="t-dim">71.4%</span>  <span class="t-cyan">▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓</span>
+  .git/         194.8 MiB  <span class="t-dim">15.8%</span>  <span class="t-cyan">▓▓▓▓</span>
+  jig/          142.1 MiB  <span class="t-dim">11.5%</span>  <span class="t-cyan">▓▓▓</span>
+  wiki/           8.2 MiB  <span class="t-dim"> 0.7%</span>
+  crates/         6.4 MiB  <span class="t-dim"> 0.5%</span></code></pre>
+    </section>
+
+    <section class="commands-preview">
+      <h2>commands</h2>
+      <div class="workflow-steps">
+        <div class="workflow-step">
+          <span class="step-cmd">oops</span>
+          <div>
+            <strong>Overview</strong>
+            <p>Directory size breakdown. The default when you just type <code>oops</code>.</p>
+          </div>
+        </div>
+        <div class="workflow-step">
+          <span class="step-cmd">drill</span>
+          <div>
+            <strong>Drill down</strong>
+            <p>Auto-follow the biggest child at each level. Finds the deepest offender instantly.</p>
+          </div>
+        </div>
+        <div class="workflow-step">
+          <span class="step-cmd">sweep</span>
+          <div>
+            <strong>Find waste</strong>
+            <p>Scan for <code>node_modules</code>, caches, build artifacts, Docker data, and platform cruft.</p>
+          </div>
+        </div>
+        <div class="workflow-step">
+          <span class="step-cmd">tree</span>
+          <div>
+            <strong>Size tree</strong>
+            <p>Recursive size-weighted directory tree. See the full picture at a glance.</p>
+          </div>
+        </div>
+        <div class="workflow-step">
+          <span class="step-cmd">top</span>
+          <div>
+            <strong>Biggest items</strong>
+            <p>Top-N largest files and directories by size, like a disk-aware <code>ls</code>.</p>
+          </div>
+        </div>
+        <div class="workflow-step">
+          <span class="step-cmd">vol</span>
+          <div>
+            <strong>Volumes</strong>
+            <p>All mounted filesystems with capacity bars and free space.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="home-bottom">
+      <p>Read the <a href="{{ '/docs/install/' | relative_url }}">docs</a> to get started, or jump to <a href="{{ '/docs/commands/' | relative_url }}">commands</a> for the full reference.</p>
+    </section>
+
+  </main>
+  {% include footer.html %}
+</body>
+</html>
