@@ -233,11 +233,15 @@ pub fn render_volumes(volumes: &[Volume]) {
 }
 
 /// Render directory entries as a proportional breakdown to stderr.
-pub fn render_dir_breakdown(path: &std::path::Path, entries: &[DirEntry], total_size: u64) {
+pub fn render_dir_breakdown(path: &std::path::Path, entries: &[DirEntry], total_size: u64, disk_total: Option<u64>) {
+    let size_label = match disk_total {
+        Some(dt) => format!("({} / {})", fmt_size(total_size), fmt_size(dt)),
+        None => format!("({})", fmt_size(total_size)),
+    };
     eprintln!(
         "{} {}",
         bold(&short_path(path)),
-        dim(&format!("({})", fmt_size(total_size))),
+        dim(&size_label),
     );
     eprintln!();
 

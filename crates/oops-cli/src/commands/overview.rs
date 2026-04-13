@@ -4,7 +4,7 @@ use std::path::PathBuf;
 
 use clap::Args;
 
-use oops_core::{scan_top_entries, ScanOptions};
+use oops_core::{list_volumes, scan_top_entries, ScanOptions};
 
 use crate::op::{Ctx, NoOutput, Op};
 use crate::ui;
@@ -39,7 +39,20 @@ impl Op for Overview {
         entries.sort_by(|a, b| b.size.cmp(&a.size));
 
         let total_size: u64 = entries.iter().map(|e| e.size).sum();
-        ui::render_dir_breakdown(target, &entries, total_size);
+
+        // Find disk total for the volume containing the target path
+        let disk_total = std::fs::canonicalize(target)
+            .ok()
+            .and_then(|canonical| {
+                list_volumes().ok().and_then(|volumes| {
+                    volumes.iter()
+                        .filter(|v| canonical.starts_with(&v.mount_point))
+                        .max_by_key(|v| v.mount_point.as_os_str().len())
+                        .map(|v| v.total)
+                })
+            });
+
+        ui::render_dir_breakdown(target, &entries, total_size, disk_total);
 
         Ok(NoOutput)
     }
