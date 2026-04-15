@@ -4,7 +4,7 @@ use std::path::PathBuf;
 
 use clap::Args;
 
-use oops_core::{ScanOptions, scan_directory};
+use oops_core::{scan_directory, ScanOptions};
 
 use crate::op::{Ctx, NoOutput, Op};
 use crate::ui;
@@ -57,7 +57,11 @@ impl Op for Top {
             ..Default::default()
         };
 
-        let spinner = ui::Spinner::start(&format!("scanning {} (depth {})...", ui::short_path(target), self.depth));
+        let spinner = ui::Spinner::start(&format!(
+            "scanning {} (depth {})...",
+            ui::short_path(target),
+            self.depth
+        ));
         let mut entries = scan_directory(target, &opts)?;
         spinner.stop();
 
@@ -99,7 +103,10 @@ impl Top {
             (s.as_str(), 1)
         };
 
-        let num: f64 = num_str.trim().parse().map_err(|_| TopError::InvalidSize(s.clone()))?;
+        let num: f64 = num_str
+            .trim()
+            .parse()
+            .map_err(|_| TopError::InvalidSize(s.clone()))?;
         Ok(Some((num * multiplier as f64) as u64))
     }
 }

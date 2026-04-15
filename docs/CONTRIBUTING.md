@@ -54,12 +54,25 @@ Use conventional commits:
 - `test:` -- Adding or updating tests
 - `chore:` -- Maintenance tasks
 
+The release automation keys off these prefixes: `feat` triggers a minor bump, `fix` a patch, and `feat!` / `BREAKING CHANGE` a major. Merges with neither produce no release PR.
+
 Examples:
 ```
 feat: add --min-size flag to top command
 fix: report block-level sizes for sparse files
 docs: add Docker disk usage recipe to wiki
 ```
+
+## Releases
+
+Releases are fully automated off `main`:
+
+1. **`release-pr.yml`** -- on every push to `main`, scans commits since the last tag for `feat` / `fix` / `feat!`. If any are found, it (re)opens a `release-automation` PR that bumps the workspace version in the three `Cargo.toml` files.
+2. **`release-tag.yml`** -- when that PR merges, a commit containing `release-automation` lands on `main`. The workflow reads the bumped version, creates `vX.Y.Z`, and pushes the tag using `secrets.RELEASE_PAT` (a PAT is required so the tag push can trigger the next workflow -- `GITHUB_TOKEN` cannot).
+3. **`release.yml`** -- triggered by the `v*` tag. Builds `oops` for `aarch64-darwin` and `x86_64-linux`, packages each as `oops-vX.Y.Z-<arch>-<os>.tar.gz`, and publishes a GitHub Release with the artifacts attached.
+4. **`install.sh`** at repo root pulls those artifacts for the user's platform. `oops update` re-runs the same script in place.
+
+Adding a new release target means extending the matrix in `.github/workflows/release.yml` and the arch/os case in `install.sh` together.
 
 ## For AI Agents
 

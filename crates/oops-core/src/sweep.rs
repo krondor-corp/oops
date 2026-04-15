@@ -87,11 +87,20 @@ fn home_hint(path: &Path) -> Option<PathBuf> {
 fn check_platform_caches(home: &Path, results: &mut Vec<WasteEntry>) {
     let candidates = [
         (home.join("Library/Caches"), WasteCategory::PlatformCache),
-        (home.join("Library/Developer/Xcode/DerivedData"), WasteCategory::BuildArtifacts),
-        (home.join("Library/Developer/CoreSimulator"), WasteCategory::PlatformCache),
+        (
+            home.join("Library/Developer/Xcode/DerivedData"),
+            WasteCategory::BuildArtifacts,
+        ),
+        (
+            home.join("Library/Developer/CoreSimulator"),
+            WasteCategory::PlatformCache,
+        ),
         (home.join(".cargo/registry"), WasteCategory::CacheFiles),
         (home.join(".npm/_cacache"), WasteCategory::CacheFiles),
-        (home.join("Library/Containers/com.docker.docker"), WasteCategory::ContainerImages),
+        (
+            home.join("Library/Containers/com.docker.docker"),
+            WasteCategory::ContainerImages,
+        ),
     ];
 
     for (candidate_path, category) in &candidates {
@@ -131,12 +140,20 @@ fn sweep_recursive(path: &Path, depth: usize, max_depth: usize, results: &mut Ve
                 "node_modules" => Some(WasteCategory::NodeModules),
                 ".git" => {
                     let size = quick_dir_size(&entry_path);
-                    if size > 100 * 1024 * 1024 { Some(WasteCategory::GitObjects) } else { None }
+                    if size > 100 * 1024 * 1024 {
+                        Some(WasteCategory::GitObjects)
+                    } else {
+                        None
+                    }
                 }
                 "target" if path.join("Cargo.toml").exists() => Some(WasteCategory::BuildArtifacts),
-                "build" if path.join("CMakeLists.txt").exists() => Some(WasteCategory::BuildArtifacts),
+                "build" if path.join("CMakeLists.txt").exists() => {
+                    Some(WasteCategory::BuildArtifacts)
+                }
                 ".cache" => Some(WasteCategory::CacheFiles),
-                "venv" | ".venv" | "env" if has_python_marker(path) => Some(WasteCategory::VirtualEnvs),
+                "venv" | ".venv" | "env" if has_python_marker(path) => {
+                    Some(WasteCategory::VirtualEnvs)
+                }
                 "__pycache__" => Some(WasteCategory::CacheFiles),
                 _ => None,
             };
@@ -144,7 +161,11 @@ fn sweep_recursive(path: &Path, depth: usize, max_depth: usize, results: &mut Ve
             if let Some(cat) = category {
                 let size = quick_dir_size(&entry_path);
                 if size > 1024 * 1024 {
-                    results.push(WasteEntry { path: entry_path.clone(), category: cat, size });
+                    results.push(WasteEntry {
+                        path: entry_path.clone(),
+                        category: cat,
+                        size,
+                    });
                 }
                 continue;
             }

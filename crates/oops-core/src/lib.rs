@@ -2,9 +2,9 @@ mod scan;
 mod sweep;
 mod volume;
 
-pub use scan::{DirEntry, ScanOptions, scan_directory, scan_top_entries};
-pub use sweep::{WasteCategory, WasteEntry, sweep_directory};
-pub use volume::{Volume, list_volumes};
+pub use scan::{scan_directory, scan_top_entries, DirEntry, ScanOptions};
+pub use sweep::{sweep_directory, WasteCategory, WasteEntry};
+pub use volume::{list_volumes, Volume};
 
 use std::os::unix::fs::MetadataExt;
 use thiserror::Error;

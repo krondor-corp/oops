@@ -4,7 +4,7 @@ use std::path::PathBuf;
 
 use clap::Args;
 
-use oops_core::{ScanOptions, scan_top_entries};
+use oops_core::{scan_top_entries, ScanOptions};
 
 use crate::op::{Ctx, NoOutput, Op};
 use crate::ui;

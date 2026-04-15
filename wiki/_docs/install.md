@@ -3,18 +3,31 @@ title: Installation
 slug: install
 ---
 
+## Quick install
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/krondor-corp/oops/main/install.sh | bash
+```
+
+The script detects your platform, downloads the matching release tarball from GitHub, and drops the `oops` binary into `~/.local/bin`. Override the destination with `INSTALL_DIR=...` if needed.
+
+Prebuilt binaries ship for `aarch64-darwin` (Apple Silicon) and `x86_64-linux`. Other platforms must build from source.
+
+## Requirements
+
+- **macOS** (Apple Silicon) or **Linux** (x86_64) for prebuilt binaries
+- `curl` or `wget` (the installer uses whichever is available)
+- Rust 1.75+ only if you're building from source
+
 ## From source
+
+Only needed for unsupported architectures or if you want to hack on oops:
 
 ```bash
 git clone https://github.com/krondor-corp/oops
 cd oops
-cargo install --path crates/oops-cli
+make install
 ```
-
-## Requirements
-
-- **Rust** 1.75+ (for building from source)
-- **macOS** or **Linux** (uses Unix `stat` for block-level sizing and `df -Pk` for volumes)
 
 ## Verify
 
@@ -22,6 +35,15 @@ cargo install --path crates/oops-cli
 oops --version
 oops --help
 ```
+
+## Updating
+
+```bash
+oops update           # upgrade to the latest release
+oops update --force   # reinstall even if already current
+```
+
+`oops update` detects how it was installed and, for install-script setups, re-runs the installer in place. Cargo/source builds are prompted before switching to a release binary.
 
 ## Quick start
 

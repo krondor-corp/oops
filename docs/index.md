@@ -21,7 +21,7 @@ cargo run -- sweep ~     # Find reclaimable waste
 | Document | Purpose |
 |----------|---------|
 | [PATTERNS.md](./PATTERNS.md) | Coding conventions and patterns |
-| [CONTRIBUTING.md](./CONTRIBUTING.md) | How to contribute (agents + humans) |
+| [CONTRIBUTING.md](./CONTRIBUTING.md) | How to contribute (agents + humans), including the release pipeline |
 | [SUCCESS_CRITERIA.md](./SUCCESS_CRITERIA.md) | CI checks that must pass |
 
 ## For AI Agents

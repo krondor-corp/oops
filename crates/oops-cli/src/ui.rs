@@ -60,20 +60,48 @@ pub fn header(msg: &str) {
     }
 }
 
+pub fn progress(msg: &str) {
+    if is_plain() {
+        eprintln!("-> {}", msg);
+    } else {
+        eprintln!("{} {}", "\u{2192}".cyan(), msg);
+    }
+}
+
+pub fn detail(msg: &str) {
+    if is_plain() {
+        eprintln!("  {}", msg);
+    } else {
+        eprintln!("  {}", msg.dimmed());
+    }
+}
+
 // ---------------------------------------------------------------------------
 // Color helpers
 // ---------------------------------------------------------------------------
 
 pub fn highlight(s: &str) -> String {
-    if is_plain() { s.to_string() } else { s.cyan().to_string() }
+    if is_plain() {
+        s.to_string()
+    } else {
+        s.cyan().to_string()
+    }
 }
 
 pub fn bold(s: &str) -> String {
-    if is_plain() { s.to_string() } else { s.bold().to_string() }
+    if is_plain() {
+        s.to_string()
+    } else {
+        s.bold().to_string()
+    }
 }
 
 pub fn dim(s: &str) -> String {
-    if is_plain() { s.to_string() } else { s.dimmed().to_string() }
+    if is_plain() {
+        s.to_string()
+    } else {
+        s.dimmed().to_string()
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -88,18 +116,30 @@ pub fn fmt_size(bytes: u64) -> String {
 // Bar rendering
 // ---------------------------------------------------------------------------
 
-enum BarColor { Green, Yellow, Red }
+enum BarColor {
+    Green,
+    Yellow,
+    Red,
+}
 
 fn capacity_color(fraction: f64) -> BarColor {
-    if fraction >= 0.90 { BarColor::Red }
-    else if fraction >= 0.70 { BarColor::Yellow }
-    else { BarColor::Green }
+    if fraction >= 0.90 {
+        BarColor::Red
+    } else if fraction >= 0.70 {
+        BarColor::Yellow
+    } else {
+        BarColor::Green
+    }
 }
 
 fn capacity_cell_color(fraction: f64) -> Color {
-    if fraction >= 0.90 { Color::Red }
-    else if fraction >= 0.70 { Color::Yellow }
-    else { Color::Green }
+    if fraction >= 0.90 {
+        Color::Red
+    } else if fraction >= 0.70 {
+        Color::Yellow
+    } else {
+        Color::Green
+    }
 }
 
 /// Render a usage bar: [########--------] 65%
@@ -108,7 +148,12 @@ pub fn usage_bar(fraction: f64, width: usize) -> String {
     let empty = width.saturating_sub(filled);
 
     if is_plain() {
-        return format!("[{}{}] {:>3.0}%", "#".repeat(filled), "-".repeat(empty), fraction * 100.0);
+        return format!(
+            "[{}{}] {:>3.0}%",
+            "#".repeat(filled),
+            "-".repeat(empty),
+            fraction * 100.0
+        );
     }
 
     let color = capacity_color(fraction);
@@ -164,7 +209,11 @@ pub fn truncate(s: &str, max: usize) -> String {
     if s.chars().count() <= max {
         s.to_string()
     } else {
-        let end = s.char_indices().nth(max - 1).map(|(i, _)| i).unwrap_or(s.len());
+        let end = s
+            .char_indices()
+            .nth(max - 1)
+            .map(|(i, _)| i)
+            .unwrap_or(s.len());
         format!("{}\u{2026}", &s[..end])
     }
 }
@@ -223,7 +272,9 @@ pub fn render_volumes(volumes: &[Volume]) {
             Cell::new(vol.mount_point.display().to_string()).fg(Color::White),
             Cell::new(truncate(&vol.filesystem, 24)).fg(Color::DarkGrey),
             Cell::new(fmt_size(vol.total)).set_alignment(CellAlignment::Right),
-            Cell::new(fmt_size(vol.used)).fg(color).set_alignment(CellAlignment::Right),
+            Cell::new(fmt_size(vol.used))
+                .fg(color)
+                .set_alignment(CellAlignment::Right),
             Cell::new(fmt_size(vol.available)).set_alignment(CellAlignment::Right),
             Cell::new(bar),
         ]);
@@ -233,16 +284,17 @@ pub fn render_volumes(volumes: &[Volume]) {
 }
 
 /// Render directory entries as a proportional breakdown to stderr.
-pub fn render_dir_breakdown(path: &std::path::Path, entries: &[DirEntry], total_size: u64, disk_total: Option<u64>) {
+pub fn render_dir_breakdown(
+    path: &std::path::Path,
+    entries: &[DirEntry],
+    total_size: u64,
+    disk_total: Option<u64>,
+) {
     let size_label = match disk_total {
         Some(dt) => format!("({} / {})", fmt_size(total_size), fmt_size(dt)),
         None => format!("({})", fmt_size(total_size)),
     };
-    eprintln!(
-        "{} {}",
-        bold(&short_path(path)),
-        dim(&size_label),
-    );
+    eprintln!("{} {}", bold(&short_path(path)), dim(&size_label),);
     eprintln!();
 
     if entries.is_empty() {
@@ -251,22 +303,45 @@ pub fn render_dir_breakdown(path: &std::path::Path, entries: &[DirEntry], total_
     }
 
     let bar_width = 24;
-    let max_name_len = entries.iter().take(20).map(|e| e.name.len() + 1).max().unwrap_or(10).min(40);
+    let max_name_len = entries
+        .iter()
+        .take(20)
+        .map(|e| e.name.len() + 1)
+        .max()
+        .unwrap_or(10)
+        .min(40);
 
     for entry in entries.iter().take(20) {
-        let fraction = if total_size > 0 { entry.size as f64 / total_size as f64 } else { 0.0 };
+        let fraction = if total_size > 0 {
+            entry.size as f64 / total_size as f64
+        } else {
+            0.0
+        };
         let bar = proportion_bar(fraction, bar_width);
-        let name = if entry.is_dir { format!("{}/", entry.name) } else { entry.name.clone() };
+        let name = if entry.is_dir {
+            format!("{}/", entry.name)
+        } else {
+            entry.name.clone()
+        };
         let name_display = truncate(&name, max_name_len);
         let size_str = fmt_size(entry.size);
         let pct_str = format!("{:>5.1}%", fraction * 100.0);
 
         if is_plain() {
-            eprintln!("  {:<width$}  {:>10}  {}", name_display, size_str, pct_str, width = max_name_len);
+            eprintln!(
+                "  {:<width$}  {:>10}  {}",
+                name_display,
+                size_str,
+                pct_str,
+                width = max_name_len
+            );
         } else {
             eprintln!(
                 "  {:<width$}  {:>10}  {}  {}",
-                name_display, size_str, dim(&pct_str), bar,
+                name_display,
+                size_str,
+                dim(&pct_str),
+                bar,
                 width = max_name_len,
             );
         }
@@ -274,9 +349,13 @@ pub fn render_dir_breakdown(path: &std::path::Path, entries: &[DirEntry], total_
 
     if entries.len() > 20 {
         let rest_size: u64 = entries.iter().skip(20).map(|e| e.size).sum();
-        eprintln!("  {} ({} more items, {})", dim("..."), entries.len() - 20, fmt_size(rest_size));
+        eprintln!(
+            "  {} ({} more items, {})",
+            dim("..."),
+            entries.len() - 20,
+            fmt_size(rest_size)
+        );
     }
-
 }
 
 /// Render the top-N largest entries table to stderr.
@@ -299,11 +378,17 @@ pub fn render_top_entries(entries: &[DirEntry], base_path: &std::path::Path) {
 
     for (i, entry) in entries.iter().enumerate() {
         let type_str = if entry.is_dir { "dir" } else { "file" };
-        let type_color = if entry.is_dir { Color::Cyan } else { Color::White };
+        let type_color = if entry.is_dir {
+            Color::Cyan
+        } else {
+            Color::White
+        };
         let rel_path = entry.path.strip_prefix(base_path).unwrap_or(&entry.path);
 
         table.add_row(vec![
-            Cell::new(i + 1).fg(Color::DarkGrey).set_alignment(CellAlignment::Right),
+            Cell::new(i + 1)
+                .fg(Color::DarkGrey)
+                .set_alignment(CellAlignment::Right),
             Cell::new(fmt_size(entry.size)).set_alignment(CellAlignment::Right),
             Cell::new(type_str).fg(type_color),
             Cell::new(truncate(&rel_path.display().to_string(), 72)).fg(Color::White),
@@ -314,25 +399,23 @@ pub fn render_top_entries(entries: &[DirEntry], base_path: &std::path::Path) {
 
     let total: u64 = entries.iter().map(|e| e.size).sum();
     eprintln!();
-    eprintln!("  {} {} across {} entries", bold("Total:"), highlight(&fmt_size(total)), entries.len());
+    eprintln!(
+        "  {} {} across {} entries",
+        bold("Total:"),
+        highlight(&fmt_size(total)),
+        entries.len()
+    );
 }
 
 /// Render a tree node (recursive, called by the tree command).
-pub fn render_tree_node(
-    entries: &[DirEntry],
-    parent_total: u64,
-    depth: usize,
-    min_pct: f64,
-) {
+pub fn render_tree_node(entries: &[DirEntry], parent_total: u64, depth: usize, min_pct: f64) {
     let indent = "  ".repeat(depth + 1);
     let connector_mid = "\u{251c}\u{2500}\u{2500}";
     let connector_end = "\u{2514}\u{2500}\u{2500}";
 
     let shown: Vec<_> = entries
         .iter()
-        .filter(|e| {
-            parent_total > 0 && (e.size as f64 / parent_total as f64) * 100.0 >= min_pct
-        })
+        .filter(|e| parent_total > 0 && (e.size as f64 / parent_total as f64) * 100.0 >= min_pct)
         .collect();
 
     let hidden_count = entries.len() - shown.len();
@@ -344,7 +427,11 @@ pub fn render_tree_node(
 
     for (i, entry) in shown.iter().enumerate() {
         let is_last = i == shown.len() - 1 && hidden_count == 0;
-        let connector = if is_last { connector_end } else { connector_mid };
+        let connector = if is_last {
+            connector_end
+        } else {
+            connector_mid
+        };
 
         let pct = if parent_total > 0 {
             (entry.size as f64 / parent_total as f64) * 100.0
@@ -353,10 +440,21 @@ pub fn render_tree_node(
         };
 
         let bar = proportion_bar(pct / 100.0, 16);
-        let name = if entry.is_dir { format!("{}/", entry.name) } else { entry.name.clone() };
+        let name = if entry.is_dir {
+            format!("{}/", entry.name)
+        } else {
+            entry.name.clone()
+        };
 
         if is_plain() {
-            eprintln!("{}{} {:>10}  {:>5.1}%  {}", indent, connector, fmt_size(entry.size), pct, name);
+            eprintln!(
+                "{}{} {:>10}  {:>5.1}%  {}",
+                indent,
+                connector,
+                fmt_size(entry.size),
+                pct,
+                name
+            );
         } else {
             eprintln!(
                 "{}{} {:>10}  {}  {}  {}",
@@ -373,7 +471,13 @@ pub fn render_tree_node(
     if hidden_count > 0 && hidden_size > 0 {
         eprintln!(
             "{}{} {:>10}          {:>16}  {} ({} items below {:.1}%)",
-            indent, dim(connector_end), fmt_size(hidden_size), "", dim("..."), hidden_count, min_pct,
+            indent,
+            dim(connector_end),
+            fmt_size(hidden_size),
+            "",
+            dim("..."),
+            hidden_count,
+            min_pct,
         );
     }
 }
@@ -389,7 +493,9 @@ pub fn render_sweep_results(entries: &[WasteEntry], verbose: bool) {
     let mut by_category: HashMap<String, (WasteCategory, u64, usize)> = HashMap::new();
     for entry in entries {
         let key = entry.category.label().to_string();
-        let e = by_category.entry(key).or_insert_with(|| (entry.category.clone(), 0, 0));
+        let e = by_category
+            .entry(key)
+            .or_insert_with(|| (entry.category.clone(), 0, 0));
         e.1 += entry.size;
         e.2 += 1;
     }
@@ -416,7 +522,9 @@ pub fn render_sweep_results(entries: &[WasteEntry], verbose: bool) {
     for (cat, size, count) in &categories {
         table.add_row(vec![
             Cell::new(cat.label()).fg(Color::Cyan),
-            Cell::new(fmt_size(*size)).fg(Color::Yellow).set_alignment(CellAlignment::Right),
+            Cell::new(fmt_size(*size))
+                .fg(Color::Yellow)
+                .set_alignment(CellAlignment::Right),
             Cell::new(count).set_alignment(CellAlignment::Right),
             Cell::new(cat.description()).fg(Color::DarkGrey),
         ]);
@@ -424,7 +532,11 @@ pub fn render_sweep_results(entries: &[WasteEntry], verbose: bool) {
 
     eprintln!("{table}");
     eprintln!();
-    eprintln!("  {} {}", bold("Total reclaimable:"), highlight(&fmt_size(total_waste)));
+    eprintln!(
+        "  {} {}",
+        bold("Total reclaimable:"),
+        highlight(&fmt_size(total_waste))
+    );
 
     if verbose {
         eprintln!();
@@ -443,7 +555,9 @@ pub fn render_sweep_results(entries: &[WasteEntry], verbose: bool) {
 
         for entry in entries.iter().take(50) {
             detail_table.add_row(vec![
-                Cell::new(fmt_size(entry.size)).fg(Color::Yellow).set_alignment(CellAlignment::Right),
+                Cell::new(fmt_size(entry.size))
+                    .fg(Color::Yellow)
+                    .set_alignment(CellAlignment::Right),
                 Cell::new(entry.category.label()).fg(Color::Cyan),
                 Cell::new(short_path(&entry.path)).fg(Color::White),
             ]);
@@ -453,7 +567,11 @@ pub fn render_sweep_results(entries: &[WasteEntry], verbose: bool) {
 
         if entries.len() > 50 {
             eprintln!();
-            eprintln!("  {} ({} more entries not shown)", dim("..."), entries.len() - 50);
+            eprintln!(
+                "  {} ({} more entries not shown)",
+                dim("..."),
+                entries.len() - 50
+            );
         }
     }
 }
@@ -463,10 +581,10 @@ pub fn render_sweep_results(entries: &[WasteEntry], verbose: bool) {
 // ---------------------------------------------------------------------------
 
 // Box-drawing characters for tree rendering
-const PIPE: &str = "\u{2502}";       // │
+const PIPE: &str = "\u{2502}"; // │
 const TEE: &str = "\u{251c}\u{2500}"; // ├─
 const ELL: &str = "\u{2514}\u{2500}"; // └─
-const ARROW_DOWN: &str = "\u{25bc}";  // ▼
+const ARROW_DOWN: &str = "\u{25bc}"; // ▼
 
 /// Render a single drill level. `depth` is 0-based. `has_next` indicates
 /// whether the drill will continue (controls the ▼ marker on the biggest dir).
@@ -490,7 +608,11 @@ pub fn render_drill_level(level: &DrillLevel, depth: usize, has_next: bool) {
         eprintln!(
             "{}{} {} {}",
             prefix,
-            if is_plain() { ARROW_DOWN } else { &ARROW_DOWN.cyan().to_string() },
+            if is_plain() {
+                ARROW_DOWN
+            } else {
+                &ARROW_DOWN.cyan().to_string()
+            },
             bold(&level.dir_name),
             dim(&format!("({})", size_str)),
         );
@@ -549,7 +671,12 @@ pub fn render_drill_level(level: &DrillLevel, depth: usize, has_next: bool) {
         if is_plain() {
             eprintln!(
                 "{}{} {:>10}  {:>5.1}%  {}{}",
-                prefix, connector, fmt_size(entry.size), pct, name_display, marker,
+                prefix,
+                connector,
+                fmt_size(entry.size),
+                pct,
+                name_display,
+                marker,
             );
         } else {
             eprintln!(
@@ -570,12 +697,21 @@ pub fn render_drill_level(level: &DrillLevel, depth: usize, has_next: bool) {
         if is_plain() {
             eprintln!(
                 "{}{} {:>10}          {:>16}  ... ({} more)",
-                prefix, ELL, fmt_size(rest_size), "", remaining,
+                prefix,
+                ELL,
+                fmt_size(rest_size),
+                "",
+                remaining,
             );
         } else {
             eprintln!(
                 "{}{} {:>10}          {:>16}  {} ({} more)",
-                prefix, dim(ELL), fmt_size(rest_size), "", dim("..."), remaining,
+                prefix,
+                dim(ELL),
+                fmt_size(rest_size),
+                "",
+                dim("..."),
+                remaining,
             );
         }
     }
@@ -640,7 +776,10 @@ impl Spinner {
         let running = Arc::new(AtomicBool::new(true));
 
         if is_plain() || !std::io::stderr().is_terminal() {
-            return Spinner { running, handle: None };
+            return Spinner {
+                running,
+                handle: None,
+            };
         }
 
         let r = Arc::clone(&running);

@@ -24,9 +24,7 @@ impl Volume {
 /// POSIX output: Filesystem 1024-blocks Used Available Capacity Mounted-on
 pub fn list_volumes() -> Result<Vec<Volume>, crate::Error> {
     debug!("running df -Pk");
-    let output = Command::new("df")
-        .args(["-Pk"])
-        .output()?;
+    let output = Command::new("df").args(["-Pk"]).output()?;
 
     let stdout = String::from_utf8_lossy(&output.stdout);
     let mut volumes = Vec::new();
@@ -39,10 +37,7 @@ pub fn list_volumes() -> Result<Vec<Volume>, crate::Error> {
 
         let filesystem = parts[0].to_string();
 
-        if filesystem == "devfs"
-            || filesystem.starts_with("map")
-            || filesystem == "none"
-        {
+        if filesystem == "devfs" || filesystem.starts_with("map") || filesystem == "none" {
             continue;
         }
 

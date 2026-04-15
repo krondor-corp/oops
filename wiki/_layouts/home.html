@@ -20,8 +20,8 @@
       <p class="hero-tagline">Where did all my disk space go?</p>
       <p class="hero-sub">Fast disk usage diagnostics for macOS and Unix. Drill into what's eating your drive, find waste, reclaim space &mdash; in seconds.</p>
       <div class="hero-install" id="hero-install">
-        <code>cargo install oops-cli</code>
-        <button class="copy-btn copy-btn-visible" onclick="navigator.clipboard.writeText('cargo install oops-cli').then(function(){var b=document.querySelector('#hero-install .copy-btn');b.textContent='copied';setTimeout(function(){b.textContent='copy'},1500)})">copy</button>
+        <code>curl -fsSL https://raw.githubusercontent.com/krondor-corp/oops/main/install.sh | bash</code>
+        <button class="copy-btn copy-btn-visible" onclick="navigator.clipboard.writeText('curl -fsSL https://raw.githubusercontent.com/krondor-corp/oops/main/install.sh | bash').then(function(){var b=document.querySelector('#hero-install .copy-btn');b.textContent='copied';setTimeout(function(){b.textContent='copy'},1500)})">copy</button>
       </div>
       <div class="hero-links">
         <a href="{{ '/docs/install/' | relative_url }}" class="hero-cta">Get started</a>

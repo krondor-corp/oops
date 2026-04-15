@@ -7,13 +7,11 @@ use tracing::{debug, debug_span};
 
 use crate::disk_size;
 
-#[derive(Debug, Clone)]
-#[derive(Default)]
+#[derive(Debug, Clone, Default)]
 pub struct ScanOptions {
     pub max_depth: Option<usize>,
     pub follow_symlinks: bool,
 }
-
 
 #[derive(Debug, Clone)]
 pub struct DirEntry {
@@ -101,7 +99,8 @@ pub fn scan_top_entries(path: &Path, opts: &ScanOptions) -> Result<Vec<DirEntry>
 
 /// Scan a directory recursively, returning a flat list of all entries up to max_depth.
 pub fn scan_directory(path: &Path, opts: &ScanOptions) -> Result<Vec<DirEntry>, crate::Error> {
-    let _span = debug_span!("scan_directory", path = %path.display(), max_depth = ?opts.max_depth).entered();
+    let _span = debug_span!("scan_directory", path = %path.display(), max_depth = ?opts.max_depth)
+        .entered();
     debug!("starting recursive scan");
 
     if !path.exists() {
@@ -144,13 +143,8 @@ fn scan_recursive(path: &Path, opts: &ScanOptions, depth: usize, results: &mut V
                 if m.is_dir() {
                     let file_count = AtomicU64::new(0);
                     let error_count = AtomicU64::new(0);
-                    let size = dir_size_recursive(
-                        &entry_path,
-                        opts,
-                        depth + 1,
-                        &file_count,
-                        &error_count,
-                    );
+                    let size =
+                        dir_size_recursive(&entry_path, opts, depth + 1, &file_count, &error_count);
                     results.push(DirEntry {
                         path: entry_path.clone(),
                         name,

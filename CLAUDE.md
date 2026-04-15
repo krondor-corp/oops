@@ -11,9 +11,18 @@ cargo clippy             # Lint
 cargo fmt --check        # Check formatting
 cargo fmt                # Fix formatting
 make check               # All of the above
-make install             # Install oops binary
+make install             # Install oops binary (cargo install --path)
 make wiki                # Start wiki dev server
 ```
+
+## Releases
+
+Automated off conventional commits to `main`. See `docs/CONTRIBUTING.md` for the full flow. Key pieces:
+
+- `install.sh` -- `curl | bash` installer that pulls the right artifact from GitHub Releases.
+- `oops update` -- self-update subcommand (re-runs `install.sh`).
+- `.github/workflows/release-pr.yml` -> `release-tag.yml` -> `release.yml` -- the three-stage pipeline driving PR -> tag -> build.
+- Requires `RELEASE_PAT` repo secret (fine-grained PAT with `contents:write` + `workflows`) so the tag push can trigger the build.
 
 ## Project Structure
 

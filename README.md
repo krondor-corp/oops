@@ -7,10 +7,23 @@ Fast disk usage diagnostics for macOS and Unix. Drill into what's eating your dr
 ## Install
 
 ```bash
-cargo install --path crates/oops-cli
+curl -fsSL https://raw.githubusercontent.com/krondor-corp/oops/main/install.sh | bash
 ```
 
-Requires Rust 1.75+.
+Downloads the latest release binary for your platform into `~/.local/bin` (override with `INSTALL_DIR=...`). Prebuilt binaries ship for `aarch64-darwin` and `x86_64-linux`.
+
+From source:
+
+```bash
+cargo install --path crates/oops-cli    # requires Rust 1.75+
+```
+
+## Update
+
+```bash
+oops update           # upgrade to the latest release
+oops update --force   # reinstall even if already current
+```
 
 ## Usage
 
@@ -45,6 +58,7 @@ oops vol              # Mounted volumes with capacity bars
 | `oops tree` | Recursive size-weighted directory tree |
 | `oops top` | Top-N largest files and directories |
 | `oops vol` | Mounted volumes with color-coded capacity bars |
+| `oops update` | Self-update to the latest GitHub release |
 
 ## Why oops?
 
