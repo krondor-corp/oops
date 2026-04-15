@@ -605,14 +605,15 @@ pub fn render_drill_level(level: &DrillLevel, depth: usize, has_next: bool) {
             dim(&format!("({})", size_str)),
         );
     } else {
+        let arrow = if is_plain() {
+            ARROW_DOWN.to_string()
+        } else {
+            ARROW_DOWN.cyan().to_string()
+        };
         eprintln!(
             "{}{} {} {}",
             prefix,
-            if is_plain() {
-                ARROW_DOWN
-            } else {
-                &ARROW_DOWN.cyan().to_string()
-            },
+            arrow,
             bold(&level.dir_name),
             dim(&format!("({})", size_str)),
         );
