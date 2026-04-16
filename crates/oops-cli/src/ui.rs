@@ -243,6 +243,32 @@ pub fn print_error(e: &dyn std::error::Error) {
 // Table builders — all table construction lives here
 // ---------------------------------------------------------------------------
 
+/// Render a one-liner free-space summary for a single volume to stderr.
+pub fn render_free(volume: &Volume) {
+    // Derive used-fraction from available/total so the bar matches the
+    // "X free of Y" copy above it. APFS's df "Capacity" column can
+    // otherwise disagree because of shared container space.
+    let fraction = if volume.total > 0 {
+        1.0 - (volume.available as f64 / volume.total as f64)
+    } else {
+        0.0
+    };
+    let mount = volume.mount_point.display().to_string();
+    let free = fmt_size(volume.available);
+    let total = fmt_size(volume.total);
+    let bar = usage_bar(fraction, 24);
+
+    eprintln!();
+    eprintln!(
+        "  {} free of {} on {}",
+        bold(&highlight(&free)),
+        total,
+        highlight(&mount),
+    );
+    eprintln!("  {}", bar);
+    eprintln!();
+}
+
 /// Render the volumes table to stderr.
 pub fn render_volumes(volumes: &[Volume]) {
     if volumes.is_empty() {
