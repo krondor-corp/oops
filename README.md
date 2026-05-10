@@ -1,4 +1,5 @@
 # oops
+<!-- daemon spawn verified -->
 
 **Where did all my disk space go?**
 
