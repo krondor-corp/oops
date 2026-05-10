@@ -70,7 +70,7 @@ pub fn sweep_directory(path: &Path, max_depth: usize) -> Result<Vec<WasteEntry>,
         check_platform_caches(&home, &mut results);
     }
 
-    results.sort_by(|a, b| b.size.cmp(&a.size));
+    results.sort_by_key(|e| std::cmp::Reverse(e.size));
     debug!(entries = results.len(), "sweep complete");
     Ok(results)
 }
