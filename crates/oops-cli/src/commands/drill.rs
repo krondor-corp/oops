@@ -63,7 +63,7 @@ impl Op for Drill {
             let spinner = ui::Spinner::start("scanning...");
             let mut entries = scan_top_entries(&current, &opts)?;
             spinner.stop();
-            entries.sort_by(|a, b| b.size.cmp(&a.size));
+            entries.sort_by_key(|e| std::cmp::Reverse(e.size));
 
             let total: u64 = entries.iter().map(|e| e.size).sum();
             let dir_name = dir_display_name(&current, start);

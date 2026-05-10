@@ -527,7 +527,7 @@ pub fn render_sweep_results(entries: &[WasteEntry], verbose: bool) {
     }
 
     let mut categories: Vec<_> = by_category.into_values().collect();
-    categories.sort_by(|a, b| b.1.cmp(&a.1));
+    categories.sort_by_key(|b| std::cmp::Reverse(b.1));
 
     header("Reclaimable Space by Category");
     eprintln!();

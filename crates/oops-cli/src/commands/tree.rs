@@ -64,7 +64,7 @@ impl Tree {
         }
 
         let mut entries = scan_top_entries(path, opts)?;
-        entries.sort_by(|a, b| b.size.cmp(&a.size));
+        entries.sort_by_key(|e| std::cmp::Reverse(e.size));
 
         let parent_total: u64 = entries.iter().map(|e| e.size).sum();
 
