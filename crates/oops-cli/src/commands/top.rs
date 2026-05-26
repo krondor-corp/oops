@@ -75,7 +75,7 @@ impl Op for Top {
             entries.retain(|e| e.size >= min);
         }
 
-        entries.sort_by(|a, b| b.size.cmp(&a.size));
+        entries.sort_by_key(|e| std::cmp::Reverse(e.size));
         entries.truncate(self.count);
 
         ui::render_top_entries(&entries, target);

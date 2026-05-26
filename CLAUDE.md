@@ -28,14 +28,17 @@ Automated off conventional commits to `main`. See `docs/CONTRIBUTING.md` for the
 
 ```
 crates/
-├── oops-core/     # Library: scanning, volumes, waste detection
-│   ├── scan.rs    # Parallel directory scanning (rayon)
+├── oops-core/     # Library: scanning, volumes, config, rules, sweep
+│   ├── scan.rs    # Parallel directory scanning + TreeNode (rayon)
 │   ├── volume.rs  # Volume detection via df -Pk
-│   ├── sweep.rs   # Waste pattern matching
+│   ├── config.rs  # XDG config loading (TOML)
+│   ├── rules.rs   # Sweep rules: built-in, user merge, matching
+│   ├── sweep.rs   # Rule-based sweep engine
 │   └── lib.rs     # Public API + disk_size() helper
 └── oops-cli/      # Binary: commands, UI rendering
-    ├── commands/   # One file per subcommand (Op trait)
-    ├── ui.rs       # ALL rendering lives here
+    ├── commands/   # One file/dir per subcommand (Op trait)
+    │   └── map/    # map command with its own render.rs
+    ├── ui/         # Shared rendering (colors, output, bars, tables)
     ├── op.rs       # Op trait + Ctx + command_enum! macro
     └── main.rs     # Entry point
 
@@ -54,7 +57,7 @@ docs/              # Developer documentation
 
 - Use `thiserror` for typed errors in oops-core, per-command error enums in oops-cli
 - Each command implements the `Op` trait with typed `Error` and `Output`
-- The `ui` module owns ALL rendering -- commands never format output directly
+- Shared rendering lives in `ui/` module; per-command rendering in `commands/<cmd>/render.rs`
 - Use `disk_size()` (block-level via `stat.blocks * 512`) not `metadata.len()`
 - Status messages go to stderr, machine-readable output to stdout
 - CLI binary is named `oops`
@@ -65,4 +68,4 @@ docs/              # Developer documentation
 - Skip CI checks with --no-verify
 - Add new dependencies without justification
 - Output ANSI color codes to stdout
-- Put rendering logic in command files (it belongs in ui.rs)
+- Put shared rendering logic in command files (it belongs in ui/)

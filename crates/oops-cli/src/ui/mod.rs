@@ -1,10 +1,8 @@
 //! Shared rendering utilities for CLI output.
 //!
-//! This module owns ALL visual output: status messages, color helpers,
-//! bar rendering, table construction, and formatting. Commands call into
-//! here rather than building tables or formatting directly.
+//! Provides consistent status symbols, color helpers, truncation, table builders,
+//! and a global plain-mode flag for scriptable output.
 
-use std::collections::HashMap;
 use std::io::Write;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
@@ -13,9 +11,15 @@ use bytesize::ByteSize;
 use colored::Colorize;
 use comfy_table::{presets, Attribute, Cell, CellAlignment, Color, ContentArrangement, Table};
 
-use oops_core::{DirEntry, Volume, WasteCategory, WasteEntry};
+use oops_core::{DirEntry, Volume};
 
 use crate::commands::drill::{DrillLevel, StopReason};
+
+pub mod colors;
+pub mod output;
+
+pub use colors::*;
+pub use output::*;
 
 // ---------------------------------------------------------------------------
 // Plain mode
@@ -32,76 +36,21 @@ pub fn is_plain() -> bool {
 }
 
 // ---------------------------------------------------------------------------
-// Symbols
+// Terminal width
 // ---------------------------------------------------------------------------
 
-pub const SYM_OK: &str = "\u{2713}";
-pub const SYM_BLOCK: &str = "\u{2588}";
-pub const SYM_BLOCK_MED: &str = "\u{2593}";
-pub const SYM_BLOCK_LIGHT: &str = "\u{2591}";
-
-// ---------------------------------------------------------------------------
-// Status helpers (stderr)
-// ---------------------------------------------------------------------------
-
-pub fn success(msg: &str) {
-    if is_plain() {
-        eprintln!("{}", msg);
-    } else {
-        eprintln!("{} {}", SYM_OK.green(), msg);
-    }
+/// Current terminal width (columns), with a sane fallback.
+pub fn term_width() -> usize {
+    crossterm::terminal::size()
+        .map(|(w, _)| w as usize)
+        .unwrap_or(80)
 }
 
-pub fn header(msg: &str) {
-    if is_plain() {
-        eprintln!("{}", msg);
-    } else {
-        eprintln!("{}", msg.bold());
-    }
-}
-
-pub fn progress(msg: &str) {
-    if is_plain() {
-        eprintln!("-> {}", msg);
-    } else {
-        eprintln!("{} {}", "\u{2192}".cyan(), msg);
-    }
-}
-
-pub fn detail(msg: &str) {
-    if is_plain() {
-        eprintln!("  {}", msg);
-    } else {
-        eprintln!("  {}", msg.dimmed());
-    }
-}
-
-// ---------------------------------------------------------------------------
-// Color helpers
-// ---------------------------------------------------------------------------
-
-pub fn highlight(s: &str) -> String {
-    if is_plain() {
-        s.to_string()
-    } else {
-        s.cyan().to_string()
-    }
-}
-
-pub fn bold(s: &str) -> String {
-    if is_plain() {
-        s.to_string()
-    } else {
-        s.bold().to_string()
-    }
-}
-
-pub fn dim(s: &str) -> String {
-    if is_plain() {
-        s.to_string()
-    } else {
-        s.dimmed().to_string()
-    }
+/// Compute a bar width that scales to terminal size.
+/// Returns roughly `fraction` of the terminal width, clamped to [min, max].
+pub fn scaled_bar(fraction: f64, min: usize, max: usize) -> usize {
+    let w = (term_width() as f64 * fraction).round() as usize;
+    w.clamp(min, max)
 }
 
 // ---------------------------------------------------------------------------
@@ -115,6 +64,10 @@ pub fn fmt_size(bytes: u64) -> String {
 // ---------------------------------------------------------------------------
 // Bar rendering
 // ---------------------------------------------------------------------------
+
+pub const SYM_BLOCK: &str = "\u{2588}";
+pub const SYM_BLOCK_MED: &str = "\u{2593}";
+pub const SYM_BLOCK_LIGHT: &str = "\u{2591}";
 
 enum BarColor {
     Green,
@@ -205,6 +158,10 @@ pub fn short_path(path: &std::path::Path) -> String {
     path.display().to_string()
 }
 
+// ---------------------------------------------------------------------------
+// Truncation
+// ---------------------------------------------------------------------------
+
 pub fn truncate(s: &str, max: usize) -> String {
     if s.chars().count() <= max {
         s.to_string()
@@ -219,35 +176,88 @@ pub fn truncate(s: &str, max: usize) -> String {
 }
 
 // ---------------------------------------------------------------------------
-// Error display
+// Table helpers
 // ---------------------------------------------------------------------------
 
-pub fn print_error(e: &dyn std::error::Error) {
-    if is_plain() {
-        eprintln!("error: {e}");
-    } else {
-        eprintln!("{} {e}", "error:".red().bold());
-    }
-    let mut source = e.source();
-    while let Some(cause) = source {
-        if is_plain() {
-            eprintln!("  caused by: {cause}");
-        } else {
-            eprintln!("  {} {cause}", "caused by:".yellow());
+/// Create a new table with the standard preset (no borders) and dynamic arrangement.
+pub fn new_table(headers: &[&str]) -> Table {
+    let mut table = Table::new();
+    table
+        .load_preset(presets::NOTHING)
+        .set_content_arrangement(ContentArrangement::Dynamic)
+        .set_header(
+            headers
+                .iter()
+                .map(|h| Cell::new(*h).add_attribute(Attribute::Bold))
+                .collect::<Vec<_>>(),
+        );
+    table
+}
+
+// ---------------------------------------------------------------------------
+// Spinner
+// ---------------------------------------------------------------------------
+
+const SPINNER_FRAMES: &[&str] = &["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
+
+pub struct Spinner {
+    running: Arc<AtomicBool>,
+    handle: Option<std::thread::JoinHandle<()>>,
+}
+
+impl Spinner {
+    pub fn start(msg: &str) -> Self {
+        use std::io::IsTerminal;
+        let running = Arc::new(AtomicBool::new(true));
+
+        if is_plain() || !std::io::stderr().is_terminal() {
+            return Spinner {
+                running,
+                handle: None,
+            };
         }
-        source = cause.source();
+
+        let r = Arc::clone(&running);
+        let msg = msg.to_string();
+        let handle = std::thread::spawn(move || {
+            let mut i = 0;
+            let mut stderr = std::io::stderr();
+            while r.load(Ordering::Relaxed) {
+                let frame = SPINNER_FRAMES[i % SPINNER_FRAMES.len()];
+                let _ = write!(stderr, "\r{} {}", frame.cyan(), msg.dimmed());
+                let _ = stderr.flush();
+                i += 1;
+                std::thread::sleep(std::time::Duration::from_millis(80));
+            }
+            let _ = write!(stderr, "\r\x1b[2K");
+            let _ = stderr.flush();
+        });
+
+        Spinner {
+            running,
+            handle: Some(handle),
+        }
+    }
+
+    pub fn stop(self) {
+        drop(self);
+    }
+}
+
+impl Drop for Spinner {
+    fn drop(&mut self) {
+        self.running.store(false, Ordering::Relaxed);
+        if let Some(h) = self.handle.take() {
+            let _ = h.join();
+        }
     }
 }
 
 // ---------------------------------------------------------------------------
-// Table builders — all table construction lives here
+// Command-specific renderers (legacy — move to per-command render.rs over time)
 // ---------------------------------------------------------------------------
 
-/// Render a one-liner free-space summary for a single volume to stderr.
 pub fn render_free(volume: &Volume) {
-    // Derive used-fraction from available/total so the bar matches the
-    // "X free of Y" copy above it. APFS's df "Capacity" column can
-    // otherwise disagree because of shared container space.
     let fraction = if volume.total > 0 {
         1.0 - (volume.available as f64 / volume.total as f64)
     } else {
@@ -256,7 +266,7 @@ pub fn render_free(volume: &Volume) {
     let mount = volume.mount_point.display().to_string();
     let free = fmt_size(volume.available);
     let total = fmt_size(volume.total);
-    let bar = usage_bar(fraction, 24);
+    let bar = usage_bar(fraction, scaled_bar(0.3, 16, 60));
 
     eprintln!();
     eprintln!(
@@ -269,7 +279,6 @@ pub fn render_free(volume: &Volume) {
     eprintln!();
 }
 
-/// Render the volumes table to stderr.
 pub fn render_volumes(volumes: &[Volume]) {
     if volumes.is_empty() {
         eprintln!("No volumes found.");
@@ -292,11 +301,11 @@ pub fn render_volumes(volumes: &[Volume]) {
     for vol in volumes {
         let fraction = vol.capacity_pct / 100.0;
         let color = capacity_cell_color(fraction);
-        let bar = usage_bar(fraction, 20);
+        let bar = usage_bar(fraction, scaled_bar(0.25, 12, 50));
 
         table.add_row(vec![
             Cell::new(vol.mount_point.display().to_string()).fg(Color::White),
-            Cell::new(truncate(&vol.filesystem, 24)).fg(Color::DarkGrey),
+            Cell::new(truncate(&vol.filesystem, scaled_bar(0.15, 16, 40))).fg(Color::DarkGrey),
             Cell::new(fmt_size(vol.total)).set_alignment(CellAlignment::Right),
             Cell::new(fmt_size(vol.used))
                 .fg(color)
@@ -309,7 +318,6 @@ pub fn render_volumes(volumes: &[Volume]) {
     eprintln!("{table}");
 }
 
-/// Render directory entries as a proportional breakdown to stderr.
 pub fn render_dir_breakdown(
     path: &std::path::Path,
     entries: &[DirEntry],
@@ -328,14 +336,15 @@ pub fn render_dir_breakdown(
         return;
     }
 
-    let bar_width = 24;
+    let tw = term_width();
+    let bar_width = scaled_bar(0.3, 16, 60);
     let max_name_len = entries
         .iter()
         .take(20)
         .map(|e| e.name.len() + 1)
         .max()
         .unwrap_or(10)
-        .min(40);
+        .min(tw / 3);
 
     for entry in entries.iter().take(20) {
         let fraction = if total_size > 0 {
@@ -384,7 +393,6 @@ pub fn render_dir_breakdown(
     }
 }
 
-/// Render the top-N largest entries table to stderr.
 pub fn render_top_entries(entries: &[DirEntry], base_path: &std::path::Path) {
     if entries.is_empty() {
         eprintln!("No entries found matching criteria.");
@@ -417,7 +425,11 @@ pub fn render_top_entries(entries: &[DirEntry], base_path: &std::path::Path) {
                 .set_alignment(CellAlignment::Right),
             Cell::new(fmt_size(entry.size)).set_alignment(CellAlignment::Right),
             Cell::new(type_str).fg(type_color),
-            Cell::new(truncate(&rel_path.display().to_string(), 72)).fg(Color::White),
+            Cell::new(truncate(
+                &rel_path.display().to_string(),
+                term_width().saturating_sub(25),
+            ))
+            .fg(Color::White),
         ]);
     }
 
@@ -433,7 +445,6 @@ pub fn render_top_entries(entries: &[DirEntry], base_path: &std::path::Path) {
     );
 }
 
-/// Render a tree node (recursive, called by the tree command).
 pub fn render_tree_node(entries: &[DirEntry], parent_total: u64, depth: usize, min_pct: f64) {
     let indent = "  ".repeat(depth + 1);
     let connector_mid = "\u{251c}\u{2500}\u{2500}";
@@ -465,7 +476,7 @@ pub fn render_tree_node(entries: &[DirEntry], parent_total: u64, depth: usize, m
             0.0
         };
 
-        let bar = proportion_bar(pct / 100.0, 16);
+        let bar = proportion_bar(pct / 100.0, scaled_bar(0.2, 10, 40));
         let name = if entry.is_dir {
             format!("{}/", entry.name)
         } else {
@@ -508,116 +519,18 @@ pub fn render_tree_node(entries: &[DirEntry], parent_total: u64, depth: usize, m
     }
 }
 
-/// Render sweep results: summary by category + optional detail table.
-pub fn render_sweep_results(entries: &[WasteEntry], verbose: bool) {
-    if entries.is_empty() {
-        success("No significant waste found.");
-        return;
-    }
-
-    // Group by category
-    let mut by_category: HashMap<String, (WasteCategory, u64, usize)> = HashMap::new();
-    for entry in entries {
-        let key = entry.category.label().to_string();
-        let e = by_category
-            .entry(key)
-            .or_insert_with(|| (entry.category.clone(), 0, 0));
-        e.1 += entry.size;
-        e.2 += 1;
-    }
-
-    let mut categories: Vec<_> = by_category.into_values().collect();
-    categories.sort_by(|a, b| b.1.cmp(&a.1));
-
-    header("Reclaimable Space by Category");
-    eprintln!();
-
-    let mut table = Table::new();
-    table
-        .load_preset(presets::NOTHING)
-        .set_content_arrangement(ContentArrangement::Dynamic)
-        .set_header(vec![
-            Cell::new("CATEGORY").add_attribute(Attribute::Bold),
-            Cell::new("SIZE").add_attribute(Attribute::Bold),
-            Cell::new("COUNT").add_attribute(Attribute::Bold),
-            Cell::new("DESCRIPTION").add_attribute(Attribute::Bold),
-        ]);
-
-    let total_waste: u64 = categories.iter().map(|(_, size, _)| size).sum();
-
-    for (cat, size, count) in &categories {
-        table.add_row(vec![
-            Cell::new(cat.label()).fg(Color::Cyan),
-            Cell::new(fmt_size(*size))
-                .fg(Color::Yellow)
-                .set_alignment(CellAlignment::Right),
-            Cell::new(count).set_alignment(CellAlignment::Right),
-            Cell::new(cat.description()).fg(Color::DarkGrey),
-        ]);
-    }
-
-    eprintln!("{table}");
-    eprintln!();
-    eprintln!(
-        "  {} {}",
-        bold("Total reclaimable:"),
-        highlight(&fmt_size(total_waste))
-    );
-
-    if verbose {
-        eprintln!();
-        header("Individual Entries");
-        eprintln!();
-
-        let mut detail_table = Table::new();
-        detail_table
-            .load_preset(presets::NOTHING)
-            .set_content_arrangement(ContentArrangement::Dynamic)
-            .set_header(vec![
-                Cell::new("SIZE").add_attribute(Attribute::Bold),
-                Cell::new("CATEGORY").add_attribute(Attribute::Bold),
-                Cell::new("PATH").add_attribute(Attribute::Bold),
-            ]);
-
-        for entry in entries.iter().take(50) {
-            detail_table.add_row(vec![
-                Cell::new(fmt_size(entry.size))
-                    .fg(Color::Yellow)
-                    .set_alignment(CellAlignment::Right),
-                Cell::new(entry.category.label()).fg(Color::Cyan),
-                Cell::new(short_path(&entry.path)).fg(Color::White),
-            ]);
-        }
-
-        eprintln!("{detail_table}");
-
-        if entries.len() > 50 {
-            eprintln!();
-            eprintln!(
-                "  {} ({} more entries not shown)",
-                dim("..."),
-                entries.len() - 50
-            );
-        }
-    }
-}
-
 // ---------------------------------------------------------------------------
 // Drill rendering
 // ---------------------------------------------------------------------------
 
-// Box-drawing characters for tree rendering
-const PIPE: &str = "\u{2502}"; // │
-const TEE: &str = "\u{251c}\u{2500}"; // ├─
-const ELL: &str = "\u{2514}\u{2500}"; // └─
-const ARROW_DOWN: &str = "\u{25bc}"; // ▼
+const PIPE: &str = "\u{2502}";
+const TEE: &str = "\u{251c}\u{2500}";
+const ELL: &str = "\u{2514}\u{2500}";
+const ARROW_DOWN: &str = "\u{25bc}";
 
-/// Render a single drill level. `depth` is 0-based. `has_next` indicates
-/// whether the drill will continue (controls the ▼ marker on the biggest dir).
 pub fn render_drill_level(level: &DrillLevel, depth: usize, has_next: bool) {
     let prefix = build_prefix(depth);
 
-    // Directory header
     let size_str = if level.total > 0 {
         fmt_size(level.total)
     } else {
@@ -649,12 +562,10 @@ pub fn render_drill_level(level: &DrillLevel, depth: usize, has_next: bool) {
         return;
     }
 
-    // Render children with tree connectors
     let show_count = level.show_count.min(level.entries.len());
     let remaining = level.entries.len().saturating_sub(show_count);
     let has_more = remaining > 0;
 
-    // Find the drilled-into entry (first dir, which is biggest since sorted)
     let drilled_idx = if has_next {
         level.entries.iter().position(|e| e.is_dir)
     } else {
@@ -672,7 +583,7 @@ pub fn render_drill_level(level: &DrillLevel, depth: usize, has_next: bool) {
             0.0
         };
         let pct = frac * 100.0;
-        let bar = proportion_bar(frac, 16);
+        let bar = proportion_bar(frac, scaled_bar(0.2, 10, 40));
 
         let name = if entry.is_dir {
             format!("{}/", entry.name)
@@ -680,7 +591,6 @@ pub fn render_drill_level(level: &DrillLevel, depth: usize, has_next: bool) {
             entry.name.clone()
         };
 
-        // Highlight the drilled entry
         let name_display = if is_drilled && !is_plain() {
             name.cyan().bold().to_string()
         } else if entry.is_dir {
@@ -743,7 +653,6 @@ pub fn render_drill_level(level: &DrillLevel, depth: usize, has_next: bool) {
         }
     }
 
-    // Stop reason
     if let Some(ref reason) = level.stop_reason {
         eprintln!();
         match reason {
@@ -765,7 +674,6 @@ pub fn render_drill_level(level: &DrillLevel, depth: usize, has_next: bool) {
     }
 }
 
-/// Render the trail summary at the end of a drill.
 pub fn render_drill_trail(names: &[String]) {
     eprintln!();
     let trail: Vec<&str> = names.iter().map(|n| n.trim_end_matches('/')).collect();
@@ -781,68 +689,5 @@ fn build_prefix(depth: usize) -> String {
     } else {
         let segment = format!("{}  ", dim(PIPE));
         segment.repeat(depth)
-    }
-}
-
-// ---------------------------------------------------------------------------
-// Spinner
-// ---------------------------------------------------------------------------
-
-const SPINNER_FRAMES: &[&str] = &["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
-
-/// A terminal spinner that renders below existing output on stderr.
-/// Clears itself when stopped or dropped. No-ops in plain mode.
-pub struct Spinner {
-    running: Arc<AtomicBool>,
-    handle: Option<std::thread::JoinHandle<()>>,
-}
-
-impl Spinner {
-    pub fn start(msg: &str) -> Self {
-        use std::io::IsTerminal;
-        let running = Arc::new(AtomicBool::new(true));
-
-        if is_plain() || !std::io::stderr().is_terminal() {
-            return Spinner {
-                running,
-                handle: None,
-            };
-        }
-
-        let r = Arc::clone(&running);
-        let msg = msg.to_string();
-        let handle = std::thread::spawn(move || {
-            let mut i = 0;
-            let mut stderr = std::io::stderr();
-            while r.load(Ordering::Relaxed) {
-                let frame = SPINNER_FRAMES[i % SPINNER_FRAMES.len()];
-                let _ = write!(stderr, "\r{} {}", frame.cyan(), msg.dimmed());
-                let _ = stderr.flush();
-                i += 1;
-                std::thread::sleep(std::time::Duration::from_millis(80));
-            }
-            // Clear the spinner line
-            let _ = write!(stderr, "\r\x1b[2K");
-            let _ = stderr.flush();
-        });
-
-        Spinner {
-            running,
-            handle: Some(handle),
-        }
-    }
-
-    pub fn stop(self) {
-        // drop triggers cleanup
-        drop(self);
-    }
-}
-
-impl Drop for Spinner {
-    fn drop(&mut self) {
-        self.running.store(false, Ordering::Relaxed);
-        if let Some(h) = self.handle.take() {
-            let _ = h.join();
-        }
     }
 }

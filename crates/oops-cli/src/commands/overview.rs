@@ -36,7 +36,7 @@ impl Op for Overview {
         let spinner = ui::Spinner::start("scanning...");
         let mut entries = scan_top_entries(target, &opts)?;
         spinner.stop();
-        entries.sort_by(|a, b| b.size.cmp(&a.size));
+        entries.sort_by_key(|e| std::cmp::Reverse(e.size));
 
         let total_size: u64 = entries.iter().map(|e| e.size).sum();
 

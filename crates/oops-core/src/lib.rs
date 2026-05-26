@@ -1,17 +1,17 @@
+pub mod config;
+pub mod rules;
 mod scan;
 mod sweep;
 mod volume;
 
-pub use scan::{scan_directory, scan_top_entries, DirEntry, ScanOptions};
-pub use sweep::{sweep_directory, WasteCategory, WasteEntry};
+pub use rules::{builtin_rules, resolve_rules, MatchMode, ResolvedRule};
+pub use scan::{scan_directory, scan_top_entries, scan_tree, DirEntry, ScanOptions, TreeNode};
+pub use sweep::{sweep_directory, SweepMatch};
 pub use volume::{list_volumes, Volume};
 
 use std::os::unix::fs::MetadataExt;
 use thiserror::Error;
 
-/// On-disk size from allocated blocks (what `du` reports).
-/// Sparse files report logical size >> actual disk usage;
-/// this returns the real footprint.
 fn disk_size(meta: &std::fs::Metadata) -> u64 {
     let blocks = meta.blocks();
     if blocks > 0 {
@@ -29,4 +29,8 @@ pub enum Error {
     PathNotFound(String),
     #[error("permission denied: {0}")]
     PermissionDenied(String),
+    #[error("config parse error: {0}")]
+    ConfigParse(String),
+    #[error("invalid rule: {0}")]
+    InvalidRule(String),
 }

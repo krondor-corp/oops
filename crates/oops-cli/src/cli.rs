@@ -46,8 +46,14 @@ crate::command_enum! {
     #[command(visible_alias = "d")]
     (Drill, commands::Drill),
 
+    #[command(visible_alias = "m")]
+    (Map, commands::Map),
+
     #[command(visible_alias = "f")]
     (Free, commands::Free),
 
     (Update, commands::Update),
+
+    #[command(visible_alias = "c")]
+    (Config, commands::Config),
 }

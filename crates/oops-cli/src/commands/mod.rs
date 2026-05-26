@@ -1,5 +1,7 @@
+pub mod config;
 pub mod drill;
 pub mod free;
+pub mod map;
 pub mod overview;
 pub mod sweep;
 pub mod top;
@@ -7,8 +9,10 @@ pub mod tree;
 pub mod update;
 pub mod volumes;
 
+pub use config::Config;
 pub use drill::Drill;
 pub use free::Free;
+pub use map::Map;
 pub use overview::Overview;
 pub use sweep::Sweep;
 pub use top::Top;
