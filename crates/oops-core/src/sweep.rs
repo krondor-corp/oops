@@ -3,124 +3,70 @@ use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use rayon::prelude::*;
-use tracing::{debug, debug_span};
 
 use crate::disk_size;
-
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub enum WasteCategory {
-    NodeModules,
-    GitObjects,
-    BuildArtifacts,
-    CacheFiles,
-    LogFiles,
-    VirtualEnvs,
-    ContainerImages,
-    PlatformCache,
-}
-
-impl WasteCategory {
-    pub fn label(&self) -> &'static str {
-        match self {
-            Self::NodeModules => "node_modules",
-            Self::GitObjects => ".git (large repos)",
-            Self::BuildArtifacts => "build artifacts",
-            Self::CacheFiles => "caches",
-            Self::LogFiles => "log files",
-            Self::VirtualEnvs => "virtual environments",
-            Self::ContainerImages => "container data",
-            Self::PlatformCache => "platform caches",
-        }
-    }
-
-    pub fn description(&self) -> &'static str {
-        match self {
-            Self::NodeModules => "npm/yarn/pnpm dependency directories",
-            Self::GitObjects => "Git object stores in large repositories",
-            Self::BuildArtifacts => "Rust target/, Go bin/, CMake build/",
-            Self::CacheFiles => ".cache directories, pip cache, cargo registry",
-            Self::LogFiles => "*.log files and log directories",
-            Self::VirtualEnvs => "Python venv/, .venv/, conda envs",
-            Self::ContainerImages => "Docker/OCI image layers and volumes",
-            Self::PlatformCache => "~/Library/Caches, Xcode DerivedData",
-        }
-    }
-}
+use crate::rules::ResolvedRule;
 
 #[derive(Debug, Clone)]
-pub struct WasteEntry {
+pub struct SweepMatch {
     pub path: PathBuf,
-    pub category: WasteCategory,
+    pub rule_name: String,
+    pub description: String,
     pub size: u64,
+    pub clean_command: Option<String>,
 }
 
-pub fn sweep_directory(path: &Path, max_depth: usize) -> Result<Vec<WasteEntry>, crate::Error> {
-    let _span = debug_span!("sweep", path = %path.display(), max_depth).entered();
-    debug!("starting sweep");
-
+pub fn sweep_directory(
+    path: &Path,
+    rules: &[ResolvedRule],
+    max_depth: usize,
+) -> Result<Vec<SweepMatch>, crate::Error> {
     if !path.exists() {
         return Err(crate::Error::PathNotFound(path.display().to_string()));
     }
 
     let mut results = Vec::new();
-    sweep_recursive(path, 0, max_depth, &mut results);
 
-    if let Some(home) = home_hint(path) {
-        debug!("checking platform caches");
-        check_platform_caches(&home, &mut results);
-    }
+    // Walk-based rules (DirBasename, FileGlob)
+    let walk_rules: Vec<&ResolvedRule> = rules.iter().filter(|r| !r.is_absolute_path()).collect();
+    sweep_recursive(path, &walk_rules, 0, max_depth, &mut results);
 
-    results.sort_by_key(|e| std::cmp::Reverse(e.size));
-    debug!(entries = results.len(), "sweep complete");
-    Ok(results)
-}
-
-fn home_hint(path: &Path) -> Option<PathBuf> {
-    let home = std::env::var("HOME").ok().map(PathBuf::from)?;
-    if path == home || path.starts_with(&home) {
-        Some(home)
-    } else {
-        None
-    }
-}
-
-fn check_platform_caches(home: &Path, results: &mut Vec<WasteEntry>) {
-    let candidates = [
-        (home.join("Library/Caches"), WasteCategory::PlatformCache),
-        (
-            home.join("Library/Developer/Xcode/DerivedData"),
-            WasteCategory::BuildArtifacts,
-        ),
-        (
-            home.join("Library/Developer/CoreSimulator"),
-            WasteCategory::PlatformCache,
-        ),
-        (home.join(".cargo/registry"), WasteCategory::CacheFiles),
-        (home.join(".npm/_cacache"), WasteCategory::CacheFiles),
-        (
-            home.join("Library/Containers/com.docker.docker"),
-            WasteCategory::ContainerImages,
-        ),
-    ];
-
-    for (candidate_path, category) in &candidates {
-        if candidate_path.is_dir() {
-            if results.iter().any(|r| r.path == *candidate_path) {
-                continue;
+    // Absolute path rules — check directly
+    for rule in rules.iter().filter(|r| r.is_absolute_path()) {
+        if let crate::rules::MatchMode::AbsolutePath(ref target) = rule.match_mode {
+            if !target.starts_with(path) && !path.starts_with(target) {
+                // Only check if the absolute path is under the scan root,
+                // or the scan root is under the absolute path
+                if !target.exists() {
+                    continue;
+                }
             }
-            let size = quick_dir_size(candidate_path);
-            if size > 50 * 1024 * 1024 {
-                results.push(WasteEntry {
-                    path: candidate_path.clone(),
-                    category: category.clone(),
-                    size,
-                });
+            if target.exists() {
+                let size = quick_dir_size(target);
+                if size >= rule.min_size {
+                    results.push(SweepMatch {
+                        path: target.clone(),
+                        rule_name: rule.name.clone(),
+                        description: rule.description.clone(),
+                        size,
+                        clean_command: rule.expand_clean_command(target),
+                    });
+                }
             }
         }
     }
+
+    results.sort_by_key(|m| std::cmp::Reverse(m.size));
+    Ok(results)
 }
 
-fn sweep_recursive(path: &Path, depth: usize, max_depth: usize, results: &mut Vec<WasteEntry>) {
+fn sweep_recursive(
+    path: &Path,
+    rules: &[&ResolvedRule],
+    depth: usize,
+    max_depth: usize,
+    results: &mut Vec<SweepMatch>,
+) {
     if depth > max_depth {
         return;
     }
@@ -135,65 +81,41 @@ fn sweep_recursive(path: &Path, depth: usize, max_depth: usize, results: &mut Ve
         let name = entry.file_name().to_string_lossy().to_string();
         let is_dir = entry_path.is_dir();
 
-        if is_dir {
-            let category = match name.as_str() {
-                "node_modules" => Some(WasteCategory::NodeModules),
-                ".git" => {
-                    let size = quick_dir_size(&entry_path);
-                    if size > 100 * 1024 * 1024 {
-                        Some(WasteCategory::GitObjects)
-                    } else {
-                        None
-                    }
-                }
-                "target" if path.join("Cargo.toml").exists() => Some(WasteCategory::BuildArtifacts),
-                "build" if path.join("CMakeLists.txt").exists() => {
-                    Some(WasteCategory::BuildArtifacts)
-                }
-                ".cache" => Some(WasteCategory::CacheFiles),
-                "venv" | ".venv" | "env" if has_python_marker(path) => {
-                    Some(WasteCategory::VirtualEnvs)
-                }
-                "__pycache__" => Some(WasteCategory::CacheFiles),
-                _ => None,
-            };
+        // Test against each rule
+        let mut matched = false;
+        for rule in rules {
+            if rule.matches_entry(&name, &entry_path, is_dir) && rule.check_parent_condition(path) {
+                let size = if is_dir {
+                    quick_dir_size(&entry_path)
+                } else {
+                    fs::symlink_metadata(&entry_path)
+                        .map(|m| disk_size(&m))
+                        .unwrap_or(0)
+                };
 
-            if let Some(cat) = category {
-                let size = quick_dir_size(&entry_path);
-                if size > 1024 * 1024 {
-                    results.push(WasteEntry {
+                if size >= rule.min_size {
+                    results.push(SweepMatch {
                         path: entry_path.clone(),
-                        category: cat,
+                        rule_name: rule.name.clone(),
+                        description: rule.description.clone(),
                         size,
+                        clean_command: rule.expand_clean_command(&entry_path),
                     });
                 }
-                continue;
-            }
-
-            if name.starts_with('.') && name != ".git" {
-                continue;
-            }
-
-            sweep_recursive(&entry_path, depth + 1, max_depth, results);
-        } else if name.ends_with(".log") {
-            if let Ok(m) = fs::symlink_metadata(&entry_path) {
-                let size = disk_size(&m);
-                if size > 10 * 1024 * 1024 {
-                    results.push(WasteEntry {
-                        path: entry_path,
-                        category: WasteCategory::LogFiles,
-                        size,
-                    });
-                }
+                matched = true;
+                break;
             }
         }
-    }
-}
 
-fn has_python_marker(dir: &Path) -> bool {
-    dir.join("setup.py").exists()
-        || dir.join("pyproject.toml").exists()
-        || dir.join("requirements.txt").exists()
+        if matched {
+            continue;
+        }
+
+        // Recurse into unmatched directories (skip hidden dirs)
+        if is_dir && !name.starts_with('.') {
+            sweep_recursive(&entry_path, rules, depth + 1, max_depth, results);
+        }
+    }
 }
 
 fn quick_dir_size(path: &Path) -> u64 {

@@ -33,6 +33,8 @@ rayon = "1"
 
 # Utilities
 bytesize = "2"
+toml = "1"
+dirs = "6"
 
 # Internal crates
 oops-core = { path = "crates/oops-core" }

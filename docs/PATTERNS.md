@@ -54,20 +54,16 @@ pub trait Op {
 - `command_enum!` macro generates dispatch from individual command structs
 - Doc comments on `Args` structs become CLI help text
 
-## UI Module (ui.rs)
+## UI Module (ui/)
 
-**All rendering lives in `crates/oops-cli/src/ui.rs`.** Commands never format output directly.
+Shared rendering lives in `crates/oops-cli/src/ui/`. Per-command rendering goes in `commands/<cmd>/render.rs` (jig pattern).
 
-- `render_dir_breakdown()` -- Overview proportional bars
-- `render_drill_level()` / `render_drill_trail()` -- Drill output
-- `render_tree_node()` -- Tree nodes (recursive)
-- `render_top_entries()` -- Top-N table
-- `render_volumes()` -- Volume capacity bars
-- `render_sweep_results()` -- Waste summary + detail
-- `proportion_bar()` / `usage_bar()` -- Bar rendering
-- `Spinner` -- Loading indicator (TTY-aware, respects plain mode)
-
-Helper functions: `fmt_size()`, `short_path()`, `truncate()`, `bold()`, `dim()`, `highlight()`
+- `ui/mod.rs` — plain mode toggle, table builder (`new_table`), bar rendering (`usage_bar`), size formatting (`fmt_size`), path helpers (`short_path`), truncation, terminal width, `Spinner`
+- `ui/colors.rs` — `bold()`, `dim()`, `highlight()` (gated on plain mode)
+- `ui/output.rs` — `success()`, `header()`, `progress()`, `detail()`, `print_error()` (stderr)
+- `commands/map/render.rs` — icicle map renderer
+- `render_volumes()` (in `ui/mod.rs`) — Volume capacity bars
+- Sweep rendering — inlined in `commands/sweep.rs` (uses shared `ui::new_table` + helpers)
 
 ## On-Disk Sizing
 
@@ -87,7 +83,7 @@ This reports actual block usage. Sparse files (Docker.raw) show real footprint, 
 - **stderr**: All UI output -- status messages, tables, bars, spinners
 - **stdout**: Machine-readable output only (reserved for future use)
 - **`--plain` flag**: Disables colors and decorations for scripting
-- All color/formatting goes through `ui.rs` helpers, never inline `colored` calls
+- All shared color/formatting goes through `ui/` helpers, never inline `colored` calls
 
 ## Naming Conventions
 
@@ -95,12 +91,12 @@ This reports actual block usage. Sparse files (Docker.raw) show real footprint, 
 - **Types/structs**: `PascalCase`
 - **Functions/methods**: `snake_case`
 - **Constants**: `SCREAMING_SNAKE_CASE`
-- **CLI subcommands**: lowercase (drill, sweep, tree, top, vol)
+- **CLI subcommands**: lowercase (map, sweep, config, free, vol)
 
 ## Path Handling
 
 - Use `PathBuf` for owned paths, `&Path` for references -- never `String`
-- Use `short_path()` from ui.rs to display `~/` prefix for home-relative paths
+- Use `short_path()` from ui to display `~/` prefix for home-relative paths
 
 ## Testing
 

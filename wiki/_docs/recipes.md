@@ -7,165 +7,112 @@ Real-world scenarios and the fastest way to diagnose them with oops.
 
 ## "My disk is full and I don't know why"
 
-Start with the overview, then drill:
-
 ```bash
-oops
-oops drill ~
+oops map ~/
 ```
 
-The drill auto-follows the biggest child at each level. In one command you'll trace the path from your home directory to the specific file or directory eating all your space — often Docker data, Xcode DerivedData, or a forgotten game install.
+One command. Shows your full disk breakdown with volume context at the top (scanned / other / free), then drills into the biggest space consumers with proportional bars. You'll immediately see whether it's repos, Library, Docker, or something unexpected.
+
+To see the full disk including system files:
+
+```bash
+oops map /
+```
+
+## "What can I clean up right now?"
+
+```bash
+oops sweep ~/ --exec
+```
+
+Finds reclaimable space (build artifacts, caches, node_modules, etc.) and walks you through cleanup interactively — shows each match with the cleanup command and asks y/N before running it.
+
+For a preview without cleaning:
+
+```bash
+oops sweep ~/
+oops sweep ~/ -v   # Show individual paths
+```
 
 ## "What's taking up space in this repo?"
 
 ```bash
 cd ~/repos/my-project
-oops
+oops map .
 ```
 
-The default overview shows a proportional breakdown. Usually it's `target/`, `node_modules/`, or `.git/`. For deeper visibility:
+Usually it's `target/`, `node_modules/`, or `.git/`. For a quick cleanup:
 
 ```bash
-oops tree --depth 4
-```
-
-## "Is Docker eating my disk?"
-
-```bash
-oops drill ~/Library/Containers/com.docker.docker
-```
-
-This drills through `Data/vms/0/data/` and shows you `Docker.raw`'s actual on-disk size (not the inflated apparent size). If it's huge:
-
-```bash
-# In Docker Desktop: Settings → Resources → Virtual disk limit
-# Or prune unused data:
-docker system prune -a
+oops sweep . --exec
 ```
 
 ## "Where are all my node_modules?"
 
 ```bash
-oops sweep ~
+oops sweep ~/ --rule node_modules -v
 ```
 
-Sweep detects `node_modules` directories across your entire home folder. The summary shows total reclaimable space by category. For details:
+Lists every `node_modules/` with its path and size. Add `--exec` to interactively remove them:
 
 ```bash
-oops sweep ~ --verbose
+oops sweep ~/ --rule node_modules --exec
 ```
 
-This lists every individual waste entry with its path, so you can decide what to nuke:
+## "Is Docker eating my disk?"
 
 ```bash
-# Delete a specific one
-rm -rf ~/old-project/node_modules
+oops map ~/Library/Containers/com.docker.docker
+```
 
-# Or nuke them all (careful!)
-oops sweep ~ --verbose | grep node_modules
+Shows you Docker.raw's actual on-disk size (not the inflated apparent size). If it's huge:
+
+```bash
+docker system prune -a
 ```
 
 ## "Xcode is eating 50 GB again"
 
 ```bash
-oops sweep ~
+oops sweep ~/ --rule xcode -v --exec
 ```
 
-Sweep checks `~/Library/Developer/Xcode/DerivedData` and `~/Library/Developer/CoreSimulator` automatically. To see just how bad it is:
+The `--rule xcode` flag matches both `xcode-derived` and `xcode-simulators` rules. For a full picture:
 
 ```bash
-oops drill ~/Library/Developer
+oops map ~/Library/Developer
 ```
 
 Clean up:
 
 ```bash
 rm -rf ~/Library/Developer/Xcode/DerivedData
-# Xcode will rebuild what it needs
-```
-
-## "What are the biggest files on my machine?"
-
-```bash
-oops top ~ --depth 8 -n 30
-```
-
-This does a deep recursive scan and shows the 30 largest items. Filter to just files:
-
-```bash
-oops top ~ --depth 8 --files-only --min-size 500MB
-```
-
-## "Which volume is running out of space?"
-
-```bash
-oops vol
-```
-
-Color-coded capacity bars: green (< 70%), yellow (< 90%), red (>= 90%). Shows all mounted filesystems with used/total/free.
-
-## "I freed space but disk still shows full"
-
-macOS uses APFS snapshots and purgeable space. Check with:
-
-```bash
-oops vol
-```
-
-If the volume still shows full after deleting files, Time Machine snapshots may be holding references. macOS will purge these eventually, or you can force it:
-
-```bash
-tmutil listlocalsnapshots /
-tmutil deletelocalsnapshots <date>
+xcrun simctl delete unavailable
+xcrun simctl runtime delete all
 ```
 
 ## "What's in ~/Library?"
 
-`~/Library` is a black box. Drill into it:
+`~/Library` is a black box. Map it:
 
 ```bash
-oops drill ~/Library
+oops map ~/Library --depth 3
 ```
 
 Common offenders:
-- `Application Support/` — app data (Steam games, Slack, etc.)
+- `Application Support/` — app data (Claude VMs, Steam games, Slack)
 - `Caches/` — safe to delete, apps rebuild them
 - `Containers/` — sandboxed app data (Docker lives here)
 - `Developer/` — Xcode caches and simulators
 - `pnpm/` — pnpm global store
 
-## "Compare two directories"
-
-Run the overview on each:
-
-```bash
-oops /path/to/dir-a
-oops /path/to/dir-b
-```
-
-Or use top to find the biggest items in each:
-
-```bash
-oops top /path/to/dir-a -n 10
-oops top /path/to/dir-b -n 10
-```
-
-## "Automated disk monitoring"
-
-Use `--plain` mode for scripts:
-
-```bash
-# Alert if any volume > 90%
-oops vol --plain 2>&1 | awk '{print $5}' | grep -q '9[0-9]%' && echo "DISK ALERT"
-```
-
 ## "Cargo registry is huge"
 
 ```bash
-oops drill ~/.cargo
+oops sweep ~/ --rule cargo -v
 ```
 
-The registry cache grows with every unique dependency version you've ever built. Clean old versions:
+The registry cache grows with every unique dependency version. Clean old versions:
 
 ```bash
 cargo cache --autoclean
@@ -173,12 +120,62 @@ cargo cache --autoclean
 rm -rf ~/.cargo/registry/cache
 ```
 
+## "I freed space but disk still shows full"
+
+macOS uses APFS purgeable space. Check with:
+
+```bash
+oops free
+```
+
+If the volume still shows full after deleting files, Time Machine snapshots may be holding references. macOS will purge these under pressure, or force it:
+
+```bash
+tmutil listlocalsnapshots /
+tmutil deletelocalsnapshots <date>
+```
+
 ## "Where do I start on a new machine?"
 
 ```bash
-oops vol
-oops drill ~
-oops sweep ~
+oops map ~/              # Where's my space going?
+oops sweep ~/ --exec     # Clean up the obvious stuff
+oops config              # See and customize sweep rules
 ```
 
-Three commands. You now know your volume health, your biggest space consumer, and all the reclaimable waste. Takes about 30 seconds total.
+Three commands. You know your disk layout, you've reclaimed the easy wins, and the tool is configured for next time.
+
+## "I want to track custom waste patterns"
+
+```bash
+oops config    # Creates ~/.config/oops/config.toml if needed
+```
+
+Edit the config to add rules:
+
+```toml
+[[rules]]
+name = "jig-worktrees"
+dir = "worktrees"
+min_size = "100 MB"
+clean = "rm -rf {path}"
+description = "stale jig worker worktrees"
+
+[[rules]]
+name = "dist-builds"
+dir = "dist"
+when_parent_has = "package.json"
+min_size = "50 MB"
+clean = "rm -rf {path}"
+description = "frontend build output"
+```
+
+Now `oops sweep` picks up your custom rules alongside the built-ins.
+
+## "Automated disk monitoring"
+
+Use `--plain` mode for scripts:
+
+```bash
+oops free --plain 2>&1 | head -1
+```

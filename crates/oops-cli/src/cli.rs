@@ -29,25 +29,20 @@ pub struct Cli {
 }
 
 crate::command_enum! {
-    #[command(visible_alias = "o")]
-    (Overview, commands::Overview),
-
-    #[command(visible_alias = "vol")]
-    (Volumes, commands::Volumes),
-
-    #[command(visible_alias = "t")]
-    (Top, commands::Top),
-
-    (Tree, commands::Tree),
+    #[command(visible_alias = "m")]
+    (Map, commands::Map),
 
     #[command(visible_alias = "s")]
     (Sweep, commands::Sweep),
 
-    #[command(visible_alias = "d")]
-    (Drill, commands::Drill),
+    #[command(visible_alias = "c")]
+    (Config, commands::Config),
 
     #[command(visible_alias = "f")]
     (Free, commands::Free),
+
+    #[command(visible_alias = "vol")]
+    (Volumes, commands::Volumes),
 
     (Update, commands::Update),
 }

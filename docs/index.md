@@ -11,8 +11,8 @@ cargo clippy             # Lint
 cargo fmt --check        # Check formatting
 make check               # All of the above
 cargo run -- --help      # Run CLI
-cargo run --             # Default overview of current directory
-cargo run -- drill ~     # Drill into home directory
+cargo run --             # Map of current directory (default)
+cargo run -- map ~       # Map of home directory
 cargo run -- sweep ~     # Find reclaimable waste
 ```
 
