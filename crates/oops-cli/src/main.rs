@@ -46,16 +46,20 @@ fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
         colored::control::set_override(true);
     }
 
-    let explicit_path = cli.path.is_some();
     let ctx = Ctx {
         path: resolve_path(cli.path),
-        explicit_path,
     };
 
     match cli.command {
         None => {
-            let overview = commands::Overview { path: None };
-            overview.run(&ctx)?;
+            let map = commands::Map {
+                path: None,
+                depth: 4,
+                show: 5,
+                expand: 3,
+                width: None,
+            };
+            map.run(&ctx)?;
             Ok(())
         }
         Some(ref command) => {

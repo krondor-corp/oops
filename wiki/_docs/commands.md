@@ -5,14 +5,12 @@ slug: commands
 
 ## oops (default)
 
-Run with no subcommand to get the overview: a proportional size breakdown of the current directory.
+With no subcommand, `oops` runs `map` on the current (or given) directory.
 
 ```bash
-oops              # Current directory
-oops /some/path   # Specific path
+oops              # map of current directory
+oops /some/path   # map of a specific path
 ```
-
-Shows the largest entries with proportional bars, sorted by size.
 
 ---
 
@@ -121,45 +119,6 @@ Optional fields:
 
 ---
 
-## drill
-
-Follow the largest child at each level, drilling down automatically until the space is evenly distributed.
-
-```bash
-oops drill ~/
-oops drill --threshold 10      # Keep going until biggest child < 10%
-oops drill -n 8                # Show 8 siblings at each level
-```
-
-| Flag | Default | Effect |
-|------|---------|--------|
-| `--threshold` | 25% | Stop when largest child is below this % of parent |
-| `-n` / `--show` | 5 | Number of sibling entries to show per level |
-| `-d` / `--depth` | 10 | Maximum levels to drill |
-
----
-
-## top
-
-Find the N largest files and directories.
-
-```bash
-oops top ~/
-oops top -n 50
-oops top --files-only
-oops top --min-size 1GB
-```
-
-| Flag | Default | Effect |
-|------|---------|--------|
-| `-n` / `--count` | 20 | Number of results |
-| `-d` / `--depth` | 5 | Max scan depth |
-| `--files-only` | off | Exclude directories |
-| `--dirs-only` | off | Exclude files |
-| `--min-size` | none | Minimum size filter |
-
----
-
 ## free
 
 One-liner: how much space is left on the volume containing the current (or specified) path.
@@ -180,22 +139,6 @@ oops vol
 ```
 
 Color-coded: green (< 70%), yellow (< 90%), red (>= 90%).
-
----
-
-## tree
-
-Recursive size-weighted directory tree.
-
-```bash
-oops tree --depth 5
-oops tree --min-pct 5
-```
-
-| Flag | Default | Effect |
-|------|---------|--------|
-| `-d` / `--depth` | 3 | Max depth |
-| `--min-pct` | 1.0 | Minimum % of parent to display |
 
 ---
 

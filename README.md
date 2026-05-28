@@ -2,7 +2,7 @@
 
 **Where did all my disk space go?**
 
-Fast disk usage diagnostics for macOS and Unix. Drill into what's eating your drive, find waste, reclaim space -- in seconds.
+Fast disk usage diagnostics for macOS and Unix. Map what's eating your drive, find waste, reclaim space — in seconds.
 
 ## Install
 
@@ -28,84 +28,88 @@ oops update --force   # reinstall even if already current
 ## Usage
 
 ```bash
-oops                  # Size breakdown of current directory
-oops drill ~          # Auto-follow the biggest child at each level
-oops sweep ~          # Find reclaimable waste (node_modules, caches, build artifacts)
-oops tree             # Recursive size-weighted directory tree
-oops top -n 30        # 30 largest files and directories
+oops                  # Visual disk map of current directory
+oops map ~/           # Map of home directory
+oops map /            # Full disk (APFS-aware)
+oops sweep ~/         # Find reclaimable space (configurable rules)
+oops sweep --exec ~/  # Interactive cleanup
+oops config           # Inspect/edit rule config
+oops free             # One-liner: how full am I?
 oops vol              # Mounted volumes with capacity bars
 ```
 
 ## What it looks like
 
 ```
-~/repos/oops (1.2 GiB)
+  / (460.4 GiB total, 27.0 GiB free)
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  scanned 270.6 GiB  other 118.8 GiB  free 71.0 GiB
 
-  target/       879.4 MiB  71.4%  ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓
-  .git/         194.8 MiB  15.8%  ▓▓▓▓
-  jig/          142.1 MiB  11.5%  ▓▓▓
-  wiki/           8.2 MiB   0.7%
-  crates/         6.4 MiB   0.5%
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━   270.6 GiB  ~/
+  ━━━━━━━━━━━━━                               91.7 GiB    Library/
+  ━━━━━                                       32.8 GiB      Application Support/
+  ━━                                          18.7 GiB      Caches/
+  ━━━━━━                                      55.6 GiB    repos/
+  ━━━━━                                       45.4 GiB      zim/
 ```
 
 ## Commands
 
 | Command | What it does |
 |---------|-------------|
-| `oops` | Proportional size breakdown of a directory |
-| `oops drill` | Auto-follow the largest child at each level until space is evenly distributed |
-| `oops sweep` | Detect node_modules, build artifacts, caches, Docker data, platform cruft |
-| `oops tree` | Recursive size-weighted directory tree |
-| `oops top` | Top-N largest files and directories |
+| `oops` / `oops map` | Visual disk map — proportional bars, one entry per line |
+| `oops sweep` | Find reclaimable space using configurable rules; `--exec` for interactive cleanup |
+| `oops config` | Show or initialize config (`~/.config/oops/config.toml`) and rules |
+| `oops free` | One-liner volume free-space summary |
 | `oops vol` | Mounted volumes with color-coded capacity bars |
 | `oops update` | Self-update to the latest GitHub release |
 
 ## Why oops?
 
 - **Fast.** Parallel scanning with rayon. Most directories render instantly.
-- **Honest sizes.** Reports on-disk block usage, not apparent file sizes. A 1 TiB sparse Docker image that only uses 20 GiB of blocks shows as 20 GiB.
-- **Terminal-native.** Colored output with progress bars, tree drawing, and proportional bars. Machine-readable output goes to stdout.
-- **No config needed.** Just run `oops`.
+- **Honest sizes.** Reports on-disk block usage, not apparent file sizes. A 1 TiB sparse Docker image using 20 GiB of blocks shows as 20 GiB.
+- **APFS-aware.** `oops map /` handles macOS firmlinks correctly — no double-counting.
+- **Configurable cleanup.** Built-in sweep rules plus your own custom patterns via TOML config.
 
 ## Global flags
 
 | Flag | Effect |
 |------|--------|
-| `--plain` | No colors, no decorations -- for scripting |
+| `--plain` | No colors, no decorations — for scripting |
 | `-v` / `--verbose` | Debug tracing output to stderr |
 
 ## Recipes
 
 **My disk is full and I don't know why:**
 ```bash
-oops drill ~
+oops map ~/
+```
+
+**What can I clean up right now?**
+```bash
+oops sweep ~/ --exec
 ```
 
 **Where are all my node_modules?**
 ```bash
-oops sweep ~
-```
-
-**What are the biggest files on my machine?**
-```bash
-oops top ~ --depth 8 --files-only --min-size 500MB
+oops sweep ~/ --rule node_modules -v
 ```
 
 **Is Docker eating my disk?**
 ```bash
-oops drill ~/Library/Containers/com.docker.docker
+oops map ~/Library/Containers/com.docker.docker
 ```
 
 **Xcode is eating 50 GB again:**
 ```bash
-oops drill ~/Library/Developer
+oops sweep ~/ --rule xcode --exec
 ```
 
 ## Architecture
 
 ```
 crates/
-├── oops-core/    # Library: scanning, volumes, waste detection
+├── oops-core/    # Library: scanning, volumes, config, rules, sweep engine
 └── oops-cli/     # Binary: commands, UI rendering, terminal output
 ```
 

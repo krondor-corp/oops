@@ -56,14 +56,14 @@ oops
 You'll get a size breakdown of the current directory. From there:
 
 ```bash
-# Drill into the biggest space hog
-oops drill
+# See where your space went
+oops map ~/
 
 # Find reclaimable waste (node_modules, caches, etc.)
-oops sweep
+oops sweep ~/
 
-# See the full size tree
-oops tree
+# Clean up interactively
+oops sweep ~/ --exec
 ```
 
 ## Flags

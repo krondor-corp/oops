@@ -43,12 +43,11 @@ crates/
 
 | Command | Purpose |
 |---------|---------|
-| `oops map` | Visual disk usage map — proportional bars, one line per entry |
+| `oops map` (default) | Visual disk usage map — proportional bars, one line per entry |
 | `oops sweep` | Find reclaimable space using configurable rules |
 | `oops config` | Inspect/manage config and sweep rules |
 | `oops free` | One-liner: how much space is left? |
-| `oops drill` | Follow the biggest child at each level |
-| `oops top` | Flat list of N largest entries |
+| `oops vol` | Mounted filesystems with capacity bars |
 
 ## On-disk sizing
 

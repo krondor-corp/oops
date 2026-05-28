@@ -24,6 +24,10 @@ Automated off conventional commits to `main`. See `docs/CONTRIBUTING.md` for the
 - `.github/workflows/release-pr.yml` -> `release-tag.yml` -> `release.yml` -- the three-stage pipeline driving PR -> tag -> build.
 - Requires `RELEASE_PAT` repo secret (fine-grained PAT with `contents:write` + `workflows`) so the tag push can trigger the build.
 
+## Commands
+
+`map`, `sweep`, `config`, `free`, `volumes`/`vol`, `update`. Running `oops` with no subcommand runs `map` on the current directory.
+
 ## Project Structure
 
 ```

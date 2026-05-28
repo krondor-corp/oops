@@ -6,7 +6,6 @@ use std::path::PathBuf;
 
 pub struct Ctx {
     pub path: PathBuf,
-    pub explicit_path: bool,
 }
 
 pub trait Op {
