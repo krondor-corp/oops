@@ -24,7 +24,7 @@ oops -n 10 --expand 10 ~/  # Show everything
 
 On macOS, `oops /` automatically redirects to the APFS data volume to avoid double-counting via firmlinks. Shows a volume context bar at the top with scanned/other/free breakdown.
 
-Want a shorthand for a common invocation? Alias it in your shell rather than expecting oops to ship one:
+Want a shorthand for a common invocation? Alias it in your shell:
 
 ```bash
 alias oopsd='oops --depth 2'

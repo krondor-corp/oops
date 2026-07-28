@@ -3,36 +3,30 @@ title: How scanning works
 slug: how-it-works
 ---
 
+This page explains why oops is fast and why its numbers are trustworthy. You don't need any of it to use the tool — it's here for the curious.
+
 ## Parallel scanning
 
-oops uses [rayon](https://docs.rs/rayon) for parallel directory traversal. When scanning a directory's children, each child is sized in parallel across available CPU cores.
+oops sizes directories in parallel across all your CPU cores. For a directory with 100 children, all 100 size calculations happen concurrently, and the traversal inside each child parallelizes too.
 
-For a directory with 100 children, all 100 size calculations happen concurrently. Within each child directory, the recursive traversal also parallelizes at each level. This makes scanning large directories (like your home directory) significantly faster than serial tools.
-
-## The scan pipeline
-
-Every command follows the same pattern:
-
-1. **Read the directory** — `fs::read_dir()` collects immediate children
-2. **Size each child in parallel** — rayon maps over children, recursively summing block sizes
-3. **Sort by size** — largest first
-4. **Render** — pass the sorted entries to the `ui` module
-
-The `ui` module owns all rendering. Commands never write to the terminal directly — they compute data and hand it off. This keeps commands thin and testable.
+This is why scanning your entire home directory takes seconds, where serial tools like `du` can take minutes on the same hardware.
 
 ## Block-level sizing
 
-Every file size is computed via `stat.blocks * 512`, not `metadata.len()`. This gives you the actual on-disk footprint:
+Every file is measured by the disk blocks it actually occupies, not the size it claims to be:
 
 ```
-metadata.len()   → logical/apparent size (what the file "says" it is)
-stat.blocks * 512 → physical/allocated size (what the disk actually stores)
+apparent size   → what the file "says" it is (what ls -l shows)
+allocated size  → what the disk actually stores (what oops shows)
 ```
 
-For regular files these are nearly identical. For sparse files, compressed files, or files with holes, they can differ dramatically.
+For regular files these are nearly identical. For sparse files, compressed files, or files with holes, they can differ dramatically — see [Sparse files]({{ '/docs/sparse-files/' | relative_url }}) for the classic Docker.raw example.
 
 ## Volume detection
 
-oops parses `df -Pk` output (POSIX mode, 1K blocks) to know which volumes exist. This gives a predictable 6-column layout across macOS and Linux, avoiding the extra inode columns that macOS `df` normally includes. Pseudo-filesystems (devfs, map auto_home, none) and zero-size mounts are filtered out at parse time.
+oops asks the system (`df`) which volumes are mounted and how full they are. That powers two things you see:
 
-Volume information powers two things: the context bar at the top of the map (total / free / scanned breakdown for the volume you're scanning) and `oops free`. The map also uses the mount-point list to skip child mounts during a scan, which is what makes scanning `/` on APFS give honest numbers.
+- the context bar at the top of the map — total / free / scanned breakdown for the volume you're on
+- `oops free` — the one-liner free-space summary
+
+The mount-point list is also what lets the map skip other volumes mid-scan, so scanning `/` on a Mac gives honest numbers instead of double-counting APFS firmlinks.

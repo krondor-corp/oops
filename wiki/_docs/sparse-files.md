@@ -22,7 +22,7 @@ apparent size:  1,099,511,627,776 bytes  (1.0 TiB)
 on-disk size:          22,388,580,352 bytes  (20.9 GiB)
 ```
 
-Most disk usage tools — including naive Rust code using `metadata.len()` — report the **apparent size**. This is misleading because it counts space that was never allocated.
+Most disk usage tools report the **apparent size**. This is misleading because it counts space that was never allocated.
 
 The actual disk usage comes from the filesystem's block allocation count:
 
