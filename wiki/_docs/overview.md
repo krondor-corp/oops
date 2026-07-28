@@ -12,7 +12,6 @@ The design principles:
 - **Fast by default.** Parallel scanning with rayon. Most directories render instantly.
 - **Honest sizes.** Reports on-disk block usage, not apparent file sizes. A 1 TiB sparse Docker image that only uses 20 GiB of blocks shows as 20 GiB.
 - **Terminal-native.** Colored output with proportional bars and tree drawing — all to stderr. Machine-readable output goes to stdout.
-- **Configurable.** Built-in sweep rules ship by default; extend with your own via `~/.config/oops/config.toml`.
 - **APFS-aware.** Handles macOS firmlinks correctly when scanning `/` to avoid double-counting.
 
 ## Architecture
@@ -21,17 +20,14 @@ oops is a Rust workspace with two crates:
 
 ```
 crates/
-├── oops-core/    # Library: scanning, volumes, config, rules, sweep engine
+├── oops-core/    # Library: scanning, volumes
 └── oops-cli/     # Binary: commands, UI rendering, terminal output
 ```
 
 **oops-core** handles the heavy lifting:
 - `scan_top_entries()` — parallel scan of immediate children with aggregated sizes
-- `scan_tree()` — recursive tree with sizes, used by `map`
-- `list_volumes()` — portable volume detection via `df -Pk`
-- `sweep_directory()` — rule-based matching engine for reclaimable space
-- `config` module — XDG config loading, TOML parsing
-- `rules` module — built-in rules, user rule merging, template expansion
+- `scan_tree()` — recursive tree with sizes, used by the default map view
+- `list_volumes()` — portable volume detection via `df -Pk`, used for volume context and APFS mount handling
 
 **oops-cli** handles presentation:
 - Each command implements an `Op` trait with typed errors and output
@@ -43,11 +39,9 @@ crates/
 
 | Command | Purpose |
 |---------|---------|
-| `oops map` (default) | Visual disk usage map — proportional bars, one line per entry |
-| `oops sweep` | Find reclaimable space using configurable rules |
-| `oops config` | Inspect/manage config and sweep rules |
+| `oops` (default, no subcommand) | Visual disk usage map — proportional bars, one line per entry |
 | `oops free` | One-liner: how much space is left? |
-| `oops vol` | Mounted filesystems with capacity bars |
+| `oops update` | Self-update to the latest release |
 
 ## On-disk sizing
 
@@ -59,4 +53,4 @@ oops uses `stat.blocks * 512` — the same metric `du` reports by default. This 
 
 ## APFS handling
 
-On macOS, `oops map /` redirects to `/System/Volumes/Data` and skips child mount points to avoid double-counting via APFS firmlinks. The volume context bar at the top shows the breakdown: scanned data, system/other, and free space.
+On macOS, `oops /` redirects to `/System/Volumes/Data` and skips child mount points to avoid double-counting via APFS firmlinks. The volume context bar at the top shows the breakdown: scanned data, system/other, and free space.

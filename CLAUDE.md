@@ -26,22 +26,19 @@ Automated off conventional commits to `main`. See `docs/CONTRIBUTING.md` for the
 
 ## Commands
 
-`map`, `sweep`, `config`, `free`, `volumes`/`vol`, `update`. Running `oops` with no subcommand runs `map` on the current directory.
+`free`, `update`. Running `oops` with no subcommand shows the visual disk map of the current (or given) directory — this is the default and only way to invoke the map view; there is no `map` subcommand. Map's display is tuned with top-level flags (`-d`/`--depth`, `-n`/`--show`, `--expand`, `--width`); alias a shorthand in your shell if you want one (e.g. `alias oopsd='oops --depth 2'`).
 
 ## Project Structure
 
 ```
 crates/
-├── oops-core/     # Library: scanning, volumes, config, rules, sweep
+├── oops-core/     # Library: scanning, volumes
 │   ├── scan.rs    # Parallel directory scanning + TreeNode (rayon)
 │   ├── volume.rs  # Volume detection via df -Pk
-│   ├── config.rs  # XDG config loading (TOML)
-│   ├── rules.rs   # Sweep rules: built-in, user merge, matching
-│   ├── sweep.rs   # Rule-based sweep engine
 │   └── lib.rs     # Public API + disk_size() helper
 └── oops-cli/      # Binary: commands, UI rendering
     ├── commands/   # One file/dir per subcommand (Op trait)
-    │   └── map/    # map command with its own render.rs
+    │   └── map/    # default-view scan+render logic, invoked directly by main.rs
     ├── ui/         # Shared rendering (colors, output, bars, tables)
     ├── op.rs       # Op trait + Ctx + command_enum! macro
     └── main.rs     # Entry point

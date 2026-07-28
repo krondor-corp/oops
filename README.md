@@ -3,7 +3,7 @@
 
 **Where did all my disk space go?**
 
-Fast disk usage diagnostics for macOS and Unix. Map what's eating your drive, find waste, reclaim space — in seconds.
+Fast disk usage diagnostics for macOS and Unix. See what's eating your drive in seconds.
 
 ## Install
 
@@ -29,14 +29,18 @@ oops update --force   # reinstall even if already current
 ## Usage
 
 ```bash
-oops                  # Visual disk map of current directory
-oops map ~/           # Map of home directory
-oops map /            # Full disk (APFS-aware)
-oops sweep ~/         # Find reclaimable space (configurable rules)
-oops sweep --exec ~/  # Interactive cleanup
-oops config           # Inspect/edit rule config
-oops free             # One-liner: how full am I?
-oops vol              # Mounted volumes with capacity bars
+oops                       # Visual disk map of current directory
+oops ~/                    # Map of home directory
+oops /                     # Full disk (APFS-aware)
+oops --depth 2 ~/          # Shallow overview
+oops -n 10 --expand 10 ~/  # Show everything
+oops free                  # One-liner: how full am I?
+```
+
+Want a shorthand for a common invocation? Alias it in your shell:
+
+```bash
+alias oopsd='oops --depth 2'
 ```
 
 ## What it looks like
@@ -58,24 +62,24 @@ oops vol              # Mounted volumes with capacity bars
 
 | Command | What it does |
 |---------|-------------|
-| `oops` / `oops map` | Visual disk map — proportional bars, one entry per line |
-| `oops sweep` | Find reclaimable space using configurable rules; `--exec` for interactive cleanup |
-| `oops config` | Show or initialize config (`~/.config/oops/config.toml`) and rules |
-| `oops free` | One-liner volume free-space summary |
-| `oops vol` | Mounted volumes with color-coded capacity bars |
+| `oops` | Visual disk map — proportional bars, one entry per line |
+| `oops free` | One-liner free-space summary for the current volume |
 | `oops update` | Self-update to the latest GitHub release |
 
 ## Why oops?
 
 - **Fast.** Parallel scanning with rayon. Most directories render instantly.
 - **Honest sizes.** Reports on-disk block usage, not apparent file sizes. A 1 TiB sparse Docker image using 20 GiB of blocks shows as 20 GiB.
-- **APFS-aware.** `oops map /` handles macOS firmlinks correctly — no double-counting.
-- **Configurable cleanup.** Built-in sweep rules plus your own custom patterns via TOML config.
+- **APFS-aware.** `oops /` handles macOS firmlinks correctly — no double-counting.
 
 ## Global flags
 
 | Flag | Effect |
 |------|--------|
+| `-d` / `--depth` | Maximum depth levels to display (default 4) |
+| `-n` / `--show` | Max entries shown per directory level (default 5) |
+| `--expand` | Max children to recurse into per level (default 3) |
+| `--width` | Terminal width override (default: auto-detect) |
 | `--plain` | No colors, no decorations — for scripting |
 | `-v` / `--verbose` | Debug tracing output to stderr |
 
@@ -83,34 +87,24 @@ oops vol              # Mounted volumes with capacity bars
 
 **My disk is full and I don't know why:**
 ```bash
-oops map ~/
-```
-
-**What can I clean up right now?**
-```bash
-oops sweep ~/ --exec
-```
-
-**Where are all my node_modules?**
-```bash
-oops sweep ~/ --rule node_modules -v
+oops ~/
 ```
 
 **Is Docker eating my disk?**
 ```bash
-oops map ~/Library/Containers/com.docker.docker
+oops ~/Library/Containers/com.docker.docker
 ```
 
-**Xcode is eating 50 GB again:**
+**`~/Library` is a black box:**
 ```bash
-oops sweep ~/ --rule xcode --exec
+oops ~/Library --depth 3
 ```
 
 ## Architecture
 
 ```
 crates/
-├── oops-core/    # Library: scanning, volumes, config, rules, sweep engine
+├── oops-core/    # Library: scanning, volumes
 └── oops-cli/     # Binary: commands, UI rendering, terminal output
 ```
 

@@ -8,7 +8,7 @@ Real-world scenarios and the fastest way to diagnose them with oops.
 ## "My disk is full and I don't know why"
 
 ```bash
-oops map ~/
+oops ~/
 ```
 
 One command. Shows your full disk breakdown with volume context at the top (scanned / other / free), then drills into the biggest space consumers with proportional bars. You'll immediately see whether it's repos, Library, Docker, or something unexpected.
@@ -16,53 +16,39 @@ One command. Shows your full disk breakdown with volume context at the top (scan
 To see the full disk including system files:
 
 ```bash
-oops map /
-```
-
-## "What can I clean up right now?"
-
-```bash
-oops sweep ~/ --exec
-```
-
-Finds reclaimable space (build artifacts, caches, node_modules, etc.) and walks you through cleanup interactively — shows each match with the cleanup command and asks y/N before running it.
-
-For a preview without cleaning:
-
-```bash
-oops sweep ~/
-oops sweep ~/ -v   # Show individual paths
+oops /
 ```
 
 ## "What's taking up space in this repo?"
 
 ```bash
 cd ~/repos/my-project
-oops map .
+oops .
 ```
 
-Usually it's `target/`, `node_modules/`, or `.git/`. For a quick cleanup:
+Usually it's `target/`, `node_modules/`, or `.git/`. Clean up with the tool that knows how to regenerate it:
 
 ```bash
-oops sweep . --exec
+cargo clean            # target/
+rm -rf node_modules     # re-fetched by npm/yarn/pnpm install
 ```
 
 ## "Where are all my node_modules?"
 
 ```bash
-oops sweep ~/ --rule node_modules -v
+oops ~/ --depth 8 -n 20
 ```
 
-Lists every `node_modules/` with its path and size. Add `--exec` to interactively remove them:
+Widen the map until the `node_modules/` directories show up as their own line, or just target a known repos root directly:
 
 ```bash
-oops sweep ~/ --rule node_modules --exec
+oops ~/repos --depth 3
 ```
 
 ## "Is Docker eating my disk?"
 
 ```bash
-oops map ~/Library/Containers/com.docker.docker
+oops ~/Library/Containers/com.docker.docker
 ```
 
 Shows you Docker.raw's actual on-disk size (not the inflated apparent size). If it's huge:
@@ -74,13 +60,7 @@ docker system prune -a
 ## "Xcode is eating 50 GB again"
 
 ```bash
-oops sweep ~/ --rule xcode -v --exec
-```
-
-The `--rule xcode` flag matches both `xcode-derived` and `xcode-simulators` rules. For a full picture:
-
-```bash
-oops map ~/Library/Developer
+oops ~/Library/Developer
 ```
 
 Clean up:
@@ -96,7 +76,7 @@ xcrun simctl runtime delete all
 `~/Library` is a black box. Map it:
 
 ```bash
-oops map ~/Library --depth 3
+oops ~/Library --depth 3
 ```
 
 Common offenders:
@@ -109,7 +89,7 @@ Common offenders:
 ## "Cargo registry is huge"
 
 ```bash
-oops sweep ~/ --rule cargo -v
+oops ~/.cargo/registry
 ```
 
 The registry cache grows with every unique dependency version. Clean old versions:
@@ -138,39 +118,10 @@ tmutil deletelocalsnapshots <date>
 ## "Where do I start on a new machine?"
 
 ```bash
-oops map ~/              # Where's my space going?
-oops sweep ~/ --exec     # Clean up the obvious stuff
-oops config              # See and customize sweep rules
+oops ~/
 ```
 
-Three commands. You know your disk layout, you've reclaimed the easy wins, and the tool is configured for next time.
-
-## "I want to track custom waste patterns"
-
-```bash
-oops config    # Creates ~/.config/oops/config.toml if needed
-```
-
-Edit the config to add rules:
-
-```toml
-[[rules]]
-name = "jig-worktrees"
-dir = "worktrees"
-min_size = "100 MB"
-clean = "rm -rf {path}"
-description = "stale jig worker worktrees"
-
-[[rules]]
-name = "dist-builds"
-dir = "dist"
-when_parent_has = "package.json"
-min_size = "50 MB"
-clean = "rm -rf {path}"
-description = "frontend build output"
-```
-
-Now `oops sweep` picks up your custom rules alongside the built-ins.
+One command. You immediately see your disk layout and where to focus cleanup — repos, caches, or Docker.
 
 ## "Automated disk monitoring"
 

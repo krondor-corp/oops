@@ -12,8 +12,8 @@ cargo fmt --check        # Check formatting
 make check               # All of the above
 cargo run -- --help      # Run CLI
 cargo run --             # Map of current directory (default)
-cargo run -- map ~       # Map of home directory
-cargo run -- sweep ~     # Find reclaimable waste
+cargo run -- ~           # Map of home directory
+cargo run -- --depth 2 ~ # Shallow overview
 ```
 
 ## Documentation

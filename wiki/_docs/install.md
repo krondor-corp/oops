@@ -57,20 +57,24 @@ You'll get a size breakdown of the current directory. From there:
 
 ```bash
 # See where your space went
-oops map ~/
+oops ~/
 
-# Find reclaimable waste (node_modules, caches, etc.)
-oops sweep ~/
+# Shallow overview
+oops --depth 2 ~/
 
-# Clean up interactively
-oops sweep ~/ --exec
+# One-liner: how full am I?
+oops free
 ```
 
 ## Flags
 
 | Flag | Effect |
 |------|--------|
+| `-d` / `--depth` | Maximum depth levels to display (default 4) |
+| `-n` / `--show` | Max entries shown per directory level (default 5) |
+| `--expand` | Max children to recurse into per level (default 3) |
+| `--width` | Terminal width override (default: auto-detect) |
 | `--plain` | No colors, no decorations — for scripting |
 | `-v` / `--verbose` | Debug tracing output to stderr |
 
-These are global — they work with any subcommand.
+`--plain` and `-v` are global — they work with any subcommand. The depth/show/expand/width flags apply to the default map view; alias a shorthand in your shell if you want a memorable name for a common combination (e.g. `alias oopsd='oops --depth 2'`).

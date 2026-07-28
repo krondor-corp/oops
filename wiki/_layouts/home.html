@@ -10,7 +10,7 @@
     <section class="hero">
       <span class="hero-eyebrow">Where did all my disk space go?</span>
       <h1 class="hero-title">oops</h1>
-      <p class="hero-tagline">Fast disk usage diagnostics for macOS and Unix. Drill into what's eating your drive, find waste, reclaim space &mdash; in seconds.</p>
+      <p class="hero-tagline">Fast disk usage diagnostics for macOS and Unix. One command shows you exactly what's eating your drive &mdash; in seconds.</p>
       <div class="hero-install" id="hero-install">
         <code>curl -fsSL https://raw.githubusercontent.com/krondor-corp/oops/main/install.sh | bash</code>
         <button class="copy-btn copy-btn-visible" onclick="navigator.clipboard.writeText('curl -fsSL https://raw.githubusercontent.com/krondor-corp/oops/main/install.sh | bash').then(function(){var b=document.querySelector('#hero-install .copy-btn');b.textContent='copied';setTimeout(function(){b.textContent='copy'},1500)})">copy</button>
@@ -24,33 +24,36 @@
     <section class="features">
       <div class="feature-grid">
         <div class="feature">
-          <h3>Instant overview</h3>
-          <p>Run <code>oops</code> and immediately see volumes, capacities, and the biggest items in your current directory. No flags needed.</p>
+          <h3>One command</h3>
+          <p>Run <code>oops</code> and immediately see a visual map of your directory: proportional bars, biggest items first, volume context at the top. No flags needed.</p>
         </div>
         <div class="feature">
-          <h3>Drill down</h3>
-          <p>Follow the largest child at each level automatically. One command traces the path from your home directory to the file eating all your space.</p>
-        </div>
-        <div class="feature">
-          <h3>Sweep for waste</h3>
-          <p>Detect <code>node_modules</code>, build artifacts, Docker images, platform caches, and other reclaimable space with <code>oops sweep</code>.</p>
+          <h3>Fast</h3>
+          <p>Parallel scanning with rayon. Most directories render instantly, and even a full home-directory scan takes seconds.</p>
         </div>
         <div class="feature">
           <h3>Honest sizes</h3>
           <p>Reports actual on-disk usage, not apparent file sizes. Sparse files like Docker.raw show their real footprint, not their inflated logical size.</p>
+        </div>
+        <div class="feature">
+          <h3>APFS-aware</h3>
+          <p>Scanning <code>/</code> on macOS handles firmlinks and child mounts correctly &mdash; no double-counting, no phantom space.</p>
         </div>
       </div>
     </section>
 
     <section class="demo-preview">
       <h2>What it looks like</h2>
-      <pre class="terminal-output"><code><span class="t-bold">~/repos/oops</span> <span class="t-dim">(1.2 GiB)</span>
+      <pre class="terminal-output"><code>  <span class="t-bold">/ (460.4 GiB total, 27.0 GiB free)</span>
+  <span class="t-cyan">━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</span>
+  <span class="t-dim">scanned 270.6 GiB  other 118.8 GiB  free 71.0 GiB</span>
 
-  target/       879.4 MiB  <span class="t-dim">71.4%</span>  <span class="t-cyan">▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓</span>
-  .git/         194.8 MiB  <span class="t-dim">15.8%</span>  <span class="t-cyan">▓▓▓▓</span>
-  jig/          142.1 MiB  <span class="t-dim">11.5%</span>  <span class="t-cyan">▓▓▓</span>
-  wiki/           8.2 MiB  <span class="t-dim"> 0.7%</span>
-  crates/         6.4 MiB  <span class="t-dim"> 0.5%</span></code></pre>
+  <span class="t-cyan">━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</span>   270.6 GiB  ~/
+  <span class="t-cyan">━━━━━━━━━━━━━</span>                               91.7 GiB    Library/
+  <span class="t-cyan">━━━━━</span>                                       32.8 GiB      Application Support/
+  <span class="t-cyan">━━</span>                                          18.7 GiB      Caches/
+  <span class="t-cyan">━━━━━━</span>                                      55.6 GiB    repos/
+  <span class="t-cyan">━━━━━</span>                                       45.4 GiB      zim/</code></pre>
     </section>
 
     <section class="commands-preview">
@@ -59,43 +62,22 @@
         <div class="workflow-step">
           <span class="step-cmd">oops</span>
           <div>
-            <strong>Overview</strong>
-            <p>Directory size breakdown. The default when you just type <code>oops</code>.</p>
+            <strong>The map</strong>
+            <p>Visual disk usage map of the current (or given) directory. The default &mdash; and the whole point. Tune it with <code>--depth</code>, <code>-n</code>, and <code>--expand</code>.</p>
           </div>
         </div>
         <div class="workflow-step">
-          <span class="step-cmd">drill</span>
+          <span class="step-cmd">free</span>
           <div>
-            <strong>Drill down</strong>
-            <p>Auto-follow the biggest child at each level. Finds the deepest offender instantly.</p>
+            <strong>Free space</strong>
+            <p>One-liner: how much space is left on this volume?</p>
           </div>
         </div>
         <div class="workflow-step">
-          <span class="step-cmd">sweep</span>
+          <span class="step-cmd">update</span>
           <div>
-            <strong>Find waste</strong>
-            <p>Scan for <code>node_modules</code>, caches, build artifacts, Docker data, and platform cruft.</p>
-          </div>
-        </div>
-        <div class="workflow-step">
-          <span class="step-cmd">tree</span>
-          <div>
-            <strong>Size tree</strong>
-            <p>Recursive size-weighted directory tree. See the full picture at a glance.</p>
-          </div>
-        </div>
-        <div class="workflow-step">
-          <span class="step-cmd">top</span>
-          <div>
-            <strong>Biggest items</strong>
-            <p>Top-N largest files and directories by size, like a disk-aware <code>ls</code>.</p>
-          </div>
-        </div>
-        <div class="workflow-step">
-          <span class="step-cmd">vol</span>
-          <div>
-            <strong>Volumes</strong>
-            <p>All mounted filesystems with capacity bars and free space.</p>
+            <strong>Self-update</strong>
+            <p>Upgrade to the latest release in place.</p>
           </div>
         </div>
       </div>
