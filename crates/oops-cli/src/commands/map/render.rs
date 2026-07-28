@@ -226,7 +226,7 @@ fn render_disk_context(vol: &Volume, root: &TreeNode, term_width: usize) {
         eprintln!(
             "  {}",
             ui::dim(&format!(
-                "tip: {} unaccounted for — run 'oops map {}' to explore",
+                "tip: {} unaccounted for — run 'oops {}' to explore",
                 ui::fmt_size(other),
                 vol.mount_point.display(),
             )),

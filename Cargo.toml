@@ -10,13 +10,8 @@ repository = "https://github.com/krondor-corp/oops"
 description = "Fast disk usage diagnostics for macOS and Unix"
 
 [workspace.dependencies]
-# Serialization
-serde = { version = "1", features = ["derive"] }
-serde_json = "1"
-
 # Error handling
 thiserror = "2"
-anyhow = "1"
 
 # Logging
 tracing = "0.1"
@@ -25,7 +20,6 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 # CLI
 clap = { version = "4", features = ["derive"] }
 colored = "3"
-comfy-table = "7"
 crossterm = "0.29"
 
 # Parallelism
@@ -33,8 +27,6 @@ rayon = "1"
 
 # Utilities
 bytesize = "2"
-toml = "1"
-dirs = "6"
 
 # Internal crates
 oops-core = { path = "crates/oops-core" }

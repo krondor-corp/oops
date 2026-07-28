@@ -54,10 +54,10 @@ fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
         None => {
             let map = commands::Map {
                 path: None,
-                depth: 4,
-                show: 5,
-                expand: 3,
-                width: None,
+                depth: cli.depth,
+                show: cli.show,
+                expand: cli.expand,
+                width: cli.width,
             };
             map.run(&ctx)?;
             Ok(())

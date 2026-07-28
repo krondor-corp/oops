@@ -6,7 +6,7 @@ Conventions for contributing to oops.
 
 oops is a Rust workspace with two crates:
 
-- **oops-core** -- Pure library. Scanning, volumes, waste detection. No terminal I/O.
+- **oops-core** -- Pure library. Scanning and volume detection. No terminal I/O.
 - **oops-cli** -- Binary. Commands, UI rendering, terminal output.
 
 ## Error Handling
@@ -16,20 +16,20 @@ oops is a Rust workspace with two crates:
   - Return `Result<T, Error>` from all public functions
 
 - **oops-cli**: Per-command error enums wrapping core errors
-  - Each command has its own error type (e.g., `DrillError`, `TreeError`)
+  - Each command has its own error type (e.g., `FreeError`, `MapError`)
   - Use `#[error(transparent)]` and `#[from]` for core error conversion
   - Infallible commands use `std::convert::Infallible`
 
 ```rust
 // In oops-cli command
 #[derive(Debug, thiserror::Error)]
-pub enum DrillError {
+pub enum FreeError {
     #[error(transparent)]
     Core(#[from] oops_core::Error),
 }
 
-impl Op for Drill {
-    type Error = DrillError;
+impl Op for Free {
+    type Error = FreeError;
     type Output = NoOutput;
 
     fn run(&self, ctx: &Ctx) -> Result<Self::Output, Self::Error> {
@@ -58,12 +58,11 @@ pub trait Op {
 
 Shared rendering lives in `crates/oops-cli/src/ui/`. Per-command rendering goes in `commands/<cmd>/render.rs` (jig pattern).
 
-- `ui/mod.rs` — plain mode toggle, table builder (`new_table`), bar rendering (`usage_bar`), size formatting (`fmt_size`), path helpers (`short_path`), truncation, terminal width, `Spinner`
+- `ui/mod.rs` — plain mode toggle, bar rendering (`usage_bar`), size formatting (`fmt_size`), path helpers (`short_path`), truncation, terminal width, `Spinner`
 - `ui/colors.rs` — `bold()`, `dim()`, `highlight()` (gated on plain mode)
 - `ui/output.rs` — `success()`, `header()`, `progress()`, `detail()`, `print_error()` (stderr)
 - `commands/map/render.rs` — icicle map renderer
-- `render_volumes()` (in `ui/mod.rs`) — Volume capacity bars
-- Sweep rendering — inlined in `commands/sweep.rs` (uses shared `ui::new_table` + helpers)
+- `render_free()` (in `ui/mod.rs`) — free-space summary with usage bar
 
 ## On-Disk Sizing
 
@@ -91,7 +90,7 @@ This reports actual block usage. Sparse files (Docker.raw) show real footprint, 
 - **Types/structs**: `PascalCase`
 - **Functions/methods**: `snake_case`
 - **Constants**: `SCREAMING_SNAKE_CASE`
-- **CLI subcommands**: lowercase (map, sweep, config, free, vol)
+- **CLI subcommands**: lowercase (free, update)
 
 ## Path Handling
 

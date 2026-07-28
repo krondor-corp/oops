@@ -33,16 +33,6 @@ For regular files these are nearly identical. For sparse files, compressed files
 
 ## Volume detection
 
-`oops volumes` parses `df -Pk` output (POSIX mode, 1K blocks). This gives a predictable 6-column layout across macOS and Linux, avoiding the extra inode columns that macOS `df` normally includes.
+oops parses `df -Pk` output (POSIX mode, 1K blocks) to know which volumes exist. This gives a predictable 6-column layout across macOS and Linux, avoiding the extra inode columns that macOS `df` normally includes. Pseudo-filesystems (devfs, map auto_home, none) and zero-size mounts are filtered out at parse time.
 
-Pseudo-filesystems (devfs, map auto_home, none) and zero-size mounts are filtered out.
-
-## Waste detection
-
-`oops sweep` walks the directory tree looking for well-known patterns:
-
-- **Name matches**: `node_modules`, `.git`, `target/` (with `Cargo.toml`), `venv/`, `__pycache__`
-- **Platform caches**: `~/Library/Caches`, Xcode DerivedData, `.cargo/registry`, Docker containers
-- **Size thresholds**: 1 MB for general waste, 100 MB for `.git`, 50 MB for platform caches, 10 MB for log files
-
-When a waste directory is found, the scan does not recurse into it — the directory is sized as a unit and added to the results.
+Volume information powers two things: the context bar at the top of the map (total / free / scanned breakdown for the volume you're scanning) and `oops free`. The map also uses the mount-point list to skip child mounts during a scan, which is what makes scanning `/` on APFS give honest numbers.

@@ -26,23 +26,27 @@ pub struct Cli {
     /// Target path to analyze (default: current directory)
     #[arg(global = false)]
     pub path: Option<PathBuf>,
+
+    /// Maximum depth levels to display
+    #[arg(short, long, default_value = "4")]
+    pub depth: usize,
+
+    /// Max entries shown per directory level
+    #[arg(short = 'n', long, default_value = "5")]
+    pub show: usize,
+
+    /// Max children to recurse into per level
+    #[arg(long, default_value = "3")]
+    pub expand: usize,
+
+    /// Terminal width override (default: auto-detect)
+    #[arg(long)]
+    pub width: Option<usize>,
 }
 
 crate::command_enum! {
-    #[command(visible_alias = "m")]
-    (Map, commands::Map),
-
-    #[command(visible_alias = "s")]
-    (Sweep, commands::Sweep),
-
-    #[command(visible_alias = "c")]
-    (Config, commands::Config),
-
     #[command(visible_alias = "f")]
     (Free, commands::Free),
-
-    #[command(visible_alias = "vol")]
-    (Volumes, commands::Volumes),
 
     (Update, commands::Update),
 }

@@ -1,6 +1,6 @@
 //! Shared rendering utilities for CLI output.
 //!
-//! Provides consistent status symbols, color helpers, truncation, table builders,
+//! Provides consistent status symbols, color helpers, truncation,
 //! and a global plain-mode flag for scriptable output.
 
 use std::io::Write;
@@ -9,7 +9,6 @@ use std::sync::Arc;
 
 use bytesize::ByteSize;
 use colored::Colorize;
-use comfy_table::{presets, Attribute, Cell, CellAlignment, Color, ContentArrangement, Table};
 
 use oops_core::Volume;
 
@@ -82,16 +81,6 @@ fn capacity_color(fraction: f64) -> BarColor {
     }
 }
 
-fn capacity_cell_color(fraction: f64) -> Color {
-    if fraction >= 0.90 {
-        Color::Red
-    } else if fraction >= 0.70 {
-        Color::Yellow
-    } else {
-        Color::Green
-    }
-}
-
 /// Render a usage bar: [########--------] 65%
 pub fn usage_bar(fraction: f64, width: usize) -> String {
     let filled = (fraction * width as f64).round() as usize;
@@ -155,25 +144,6 @@ pub fn truncate(s: &str, max: usize) -> String {
             .unwrap_or(s.len());
         format!("{}\u{2026}", &s[..end])
     }
-}
-
-// ---------------------------------------------------------------------------
-// Table helpers
-// ---------------------------------------------------------------------------
-
-/// Create a new table with the standard preset (no borders) and dynamic arrangement.
-pub fn new_table(headers: &[&str]) -> Table {
-    let mut table = Table::new();
-    table
-        .load_preset(presets::NOTHING)
-        .set_content_arrangement(ContentArrangement::Dynamic)
-        .set_header(
-            headers
-                .iter()
-                .map(|h| Cell::new(*h).add_attribute(Attribute::Bold))
-                .collect::<Vec<_>>(),
-        );
-    table
 }
 
 // ---------------------------------------------------------------------------
@@ -259,43 +229,4 @@ pub fn render_free(volume: &Volume) {
     );
     eprintln!("  {}", bar);
     eprintln!();
-}
-
-pub fn render_volumes(volumes: &[Volume]) {
-    if volumes.is_empty() {
-        eprintln!("No volumes found.");
-        return;
-    }
-
-    let mut table = Table::new();
-    table
-        .load_preset(presets::NOTHING)
-        .set_content_arrangement(ContentArrangement::Dynamic)
-        .set_header(vec![
-            Cell::new("MOUNT").add_attribute(Attribute::Bold),
-            Cell::new("FILESYSTEM").add_attribute(Attribute::Bold),
-            Cell::new("SIZE").add_attribute(Attribute::Bold),
-            Cell::new("USED").add_attribute(Attribute::Bold),
-            Cell::new("FREE").add_attribute(Attribute::Bold),
-            Cell::new("").add_attribute(Attribute::Bold),
-        ]);
-
-    for vol in volumes {
-        let fraction = vol.capacity_pct / 100.0;
-        let color = capacity_cell_color(fraction);
-        let bar = usage_bar(fraction, scaled_bar(0.25, 12, 50));
-
-        table.add_row(vec![
-            Cell::new(vol.mount_point.display().to_string()).fg(Color::White),
-            Cell::new(truncate(&vol.filesystem, scaled_bar(0.15, 16, 40))).fg(Color::DarkGrey),
-            Cell::new(fmt_size(vol.total)).set_alignment(CellAlignment::Right),
-            Cell::new(fmt_size(vol.used))
-                .fg(color)
-                .set_alignment(CellAlignment::Right),
-            Cell::new(fmt_size(vol.available)).set_alignment(CellAlignment::Right),
-            Cell::new(bar),
-        ]);
-    }
-
-    eprintln!("{table}");
 }
