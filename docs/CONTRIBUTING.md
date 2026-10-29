@@ -43,6 +43,27 @@ Guide for both human contributors and AI agents working on oops.
 
 5. Open a pull request
 
+## Profiling
+
+Scanning is dominated by filesystem syscalls, so measure before optimizing.
+Install the tools with `brew install samply hyperfine` (or `cargo install samply`
+and your distro's `hyperfine` on Linux).
+
+```bash
+make profile                    # flamegraph of `oops ~` in the Firefox Profiler
+make profile DIR=~/Library      # profile a specific directory
+make bench DIR=~/repos          # wall-clock timing over 10 runs
+RAYON_NUM_THREADS=4 make bench  # compare thread counts
+```
+
+`make profile` builds with the `profiling` Cargo profile (release + debug symbols).
+In the profiler, the "Flame Graph" tab gives the classic view; use "Invert call
+stack" in the Call Tree to see which syscalls dominate.
+
+Note that results depend heavily on whether the scanned tree fits in the
+kernel's vnode cache (`sysctl kern.maxvnodes` on macOS): small trees are
+CPU/lock bound, trees larger than the cache are I/O bound.
+
 ## Commit Message Format
 
 Use conventional commits:

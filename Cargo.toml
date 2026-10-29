@@ -34,3 +34,8 @@ bytesize = "2"
 # Internal crates
 oops-core = { path = "crates/oops-core" }
 oops-cli = { path = "crates/oops-cli" }
+
+# Release build with debug symbols, for `make profile`
+[profile.profiling]
+inherits = "release"
+debug = true
