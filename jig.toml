@@ -1,0 +1,18 @@
+# Worktree configuration
+[worktree]
+# base = "origin/main"       # Base branch for new worktrees
+# on_create = "npm install"  # Command to run after worktree creation
+# copy = [".env"]            # Gitignored files to copy to new worktrees
+
+# Agent configuration
+[agent]
+type = "claude"
+
+# Issue configuration (Linear)
+# [issues]
+# provider = "linear"
+# auto_spawn_labels = []               # [] = all issues, ["x"] = filtered, omit = disabled
+#
+# [issues.linear]
+# profile = "work"                     # references ~/.config/jig/config.toml profile
+# team = "ENG"                         # Linear team key

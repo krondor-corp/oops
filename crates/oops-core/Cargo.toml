@@ -8,4 +8,5 @@ license.workspace = true
 [dependencies]
 thiserror.workspace = true
 rayon.workspace = true
+libc.workspace = true
 tracing.workspace = true

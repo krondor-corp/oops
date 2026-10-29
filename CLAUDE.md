@@ -12,6 +12,8 @@ cargo fmt --check        # Check formatting
 cargo fmt                # Fix formatting
 make check               # All of the above
 make install             # Install oops binary (cargo install --path)
+make profile             # Flamegraph a scan via samply (DIR=path)
+make bench               # Time a scan via hyperfine (DIR=path)
 make wiki                # Start wiki dev server
 ```
 
