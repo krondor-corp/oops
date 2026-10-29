@@ -8,3 +8,5 @@ Cargo.lock
 wiki/_site
 wiki/.jekyll-cache
 wiki/.sass-cache
+.jig/
+jig.local.toml
