@@ -25,6 +25,9 @@ crossterm = "0.29"
 # Parallelism
 rayon = "1"
 
+# FFI (getattrlistbulk on macOS)
+libc = "0.2"
+
 # Utilities
 bytesize = "2"
 

@@ -9,6 +9,7 @@ use std::collections::HashSet;
 use std::os::unix::fs::MetadataExt;
 
 use crate::disk_size;
+use crate::listing::{self, Kind, Stat};
 
 #[derive(Debug, Clone, Default)]
 pub struct ScanOptions {
@@ -223,68 +224,46 @@ pub fn scan_tree(
         None
     };
 
-    Ok(build_tree_node(path, &name, max_depth, 0, opts, root_dev))
+    let stat = Stat::of(path, opts.follow_symlinks);
+    Ok(build_tree_node(
+        path, &name, stat, max_depth, 0, opts, root_dev,
+    ))
 }
 
 fn build_tree_node(
     path: &Path,
     name: &str,
+    stat: Stat,
     max_depth: usize,
     depth: usize,
     opts: &ScanOptions,
     root_dev: Option<u64>,
 ) -> TreeNode {
-    let meta = if opts.follow_symlinks {
-        fs::metadata(path)
-    } else {
-        fs::symlink_metadata(path)
+    let leaf = |size: u64, is_dir: bool| TreeNode {
+        name: name.to_string(),
+        path: path.to_path_buf(),
+        size,
+        is_dir,
+        children: vec![],
     };
+    let is_dir = stat.kind == Kind::Dir;
 
-    let meta = match meta {
-        Ok(m) => m,
-        Err(_) => {
-            return TreeNode {
-                name: name.to_string(),
-                path: path.to_path_buf(),
-                size: 0,
-                is_dir: false,
-                children: vec![],
-            };
-        }
-    };
+    if stat.kind == Kind::Error {
+        return leaf(0, false);
+    }
 
     // Skip explicitly excluded paths (e.g. APFS synthetic mounts)
     if !opts.skip_paths.is_empty() && opts.skip_paths.contains(path) {
-        return TreeNode {
-            name: name.to_string(),
-            path: path.to_path_buf(),
-            size: 0,
-            is_dir: meta.is_dir(),
-            children: vec![],
-        };
+        return leaf(0, is_dir);
     }
 
     // Skip entries on a different filesystem
-    if let Some(rd) = root_dev {
-        if meta.dev() != rd {
-            return TreeNode {
-                name: name.to_string(),
-                path: path.to_path_buf(),
-                size: 0,
-                is_dir: meta.is_dir(),
-                children: vec![],
-            };
-        }
+    if root_dev.is_some_and(|rd| stat.dev != rd) {
+        return leaf(0, is_dir);
     }
 
-    if !meta.is_dir() {
-        return TreeNode {
-            name: name.to_string(),
-            path: path.to_path_buf(),
-            size: crate::disk_size(&meta),
-            is_dir: false,
-            children: vec![],
-        };
+    if !is_dir {
+        return leaf(stat.size, false);
     }
 
     // Beyond max_depth: aggregate size only, don't retain children
@@ -292,38 +271,21 @@ fn build_tree_node(
         let file_count = AtomicU64::new(0);
         let error_count = AtomicU64::new(0);
         let size = dir_size_recursive(path, opts, 0, &file_count, &error_count);
-        return TreeNode {
-            name: name.to_string(),
-            path: path.to_path_buf(),
-            size,
-            is_dir: true,
-            children: vec![],
-        };
+        return leaf(size, true);
     }
 
-    let read_dir = match fs::read_dir(path) {
-        Ok(rd) => rd,
-        Err(_) => {
-            return TreeNode {
-                name: name.to_string(),
-                path: path.to_path_buf(),
-                size: 0,
-                is_dir: true,
-                children: vec![],
-            };
-        }
-    };
-
-    let entries: Vec<PathBuf> = read_dir.filter_map(|e| e.ok().map(|e| e.path())).collect();
+    let mut entries: Vec<(PathBuf, String, Stat)> = Vec::new();
+    let listed = listing::list_dir(path, opts.follow_symlinks, |child, stat| {
+        entries.push((path.join(child), child.to_string_lossy().into_owned(), stat));
+    });
+    if listed.is_err() && entries.is_empty() {
+        return leaf(0, true);
+    }
 
     let mut children: Vec<TreeNode> = entries
         .par_iter()
-        .map(|p| {
-            let child_name = p
-                .file_name()
-                .map(|n| n.to_string_lossy().to_string())
-                .unwrap_or_default();
-            build_tree_node(p, &child_name, max_depth, depth + 1, opts, root_dev)
+        .map(|(p, child_name, stat)| {
+            build_tree_node(p, child_name, *stat, max_depth, depth + 1, opts, root_dev)
         })
         .collect();
 
@@ -357,39 +319,27 @@ fn dir_size_recursive(
         }
     }
 
-    let read_dir = match fs::read_dir(path) {
-        Ok(rd) => rd,
-        Err(_) => {
-            error_count.fetch_add(1, Ordering::Relaxed);
-            return 0;
+    // Sum files inline; only subdirectories need a path and a parallel task.
+    let mut size = 0;
+    let mut files = 0;
+    let mut errors = 0;
+    let mut subdirs = Vec::new();
+    let listed = listing::list_dir(path, opts.follow_symlinks, |name, stat| match stat.kind {
+        Kind::Dir => subdirs.push(path.join(name)),
+        Kind::File => {
+            files += 1;
+            size += stat.size;
         }
-    };
+        Kind::Error => errors += 1,
+    });
+    if listed.is_err() {
+        errors += 1;
+    }
+    file_count.fetch_add(files, Ordering::Relaxed);
+    error_count.fetch_add(errors, Ordering::Relaxed);
 
-    let entries: Vec<_> = read_dir.filter_map(|e| e.ok()).collect();
-
-    entries
+    size + subdirs
         .par_iter()
-        .map(|entry| {
-            let meta = if opts.follow_symlinks {
-                fs::metadata(entry.path())
-            } else {
-                fs::symlink_metadata(entry.path())
-            };
-
-            match meta {
-                Ok(m) => {
-                    if m.is_dir() {
-                        dir_size_recursive(&entry.path(), opts, depth + 1, file_count, error_count)
-                    } else {
-                        file_count.fetch_add(1, Ordering::Relaxed);
-                        disk_size(&m)
-                    }
-                }
-                Err(_) => {
-                    error_count.fetch_add(1, Ordering::Relaxed);
-                    0
-                }
-            }
-        })
-        .sum()
+        .map(|d| dir_size_recursive(d, opts, depth + 1, file_count, error_count))
+        .sum::<u64>()
 }
